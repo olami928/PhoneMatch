@@ -667,7 +667,7 @@ Do the stages in order. Do not start a stage until the one before it is marked D
 | 6 | Google login and role system | Sign in works, `/admin` blocks non-admins | Not started |
 | 7 | Admin: products, stock, and feature fields | Admin can add, edit, and set stock for a phone | Not started |
 | 8 | Admin: orders and status updates | Admin can change an order's status | Not started |
-| 9 | Mailgun emails (customer and admin) | Customer gets an order email in under a minute | Not started |
+| 9 | Mailgun emails (customer and admin) | Customer gets an order email in under a minute | **Email module DONE (Session 11). Not yet triggered: there is no `POST /orders` route (Stage 5) to fire it from** |
 | 10 | Questionnaire and results pages connected to the model through `POST /recommend`, with session logging and feedback | A shopper answers 5 questions, sees ranked phones with reasons in under 3 seconds, and can add one to the cart | **MOSTLY DONE (Session 10).** Real ranked results live locally. Session logging + feedback buttons still missing |
 | 11 | Admin model page, deployment checks, and real usability test | 2 of 3 real testers finish the flow from questionnaire to order unaided | Not started |
 
@@ -923,3 +923,54 @@ paths (pick a brand / skip the brand) — both now reach /results with the brand
 answer correctly kept or correctly absent. 10/10 personas still pass.
 Lesson recorded: this is the second bug that only a human clicking the real UI
 could find, and the third that a build passing did NOT mean the flow worked.
+
+### Session 11: 2026-10-01
+
+**Agent/model:** Cline
+**Goal of the session:** Add the brand-preference fix that was half-finished, then
+wire Mailgun for Stage 9 using the credentials the owner supplied.
+**What was done:**
+- **Finished the brand-preference work.** The forest silently ignores
+  `brand_preference` (it is not in `MODEL_COLUMNS`), so picking "itel" returned
+  mixed brands. Added it as a CONFIG-DRIVEN preference in
+  `questionnaire_v1.json` + `apply_hard_filters`, not a hard filter, because a
+  strict filter can return zero results. Verified: asking for itel now returns
+  only itel (3 candidates); asking for Apple iPhone at that budget returns the
+  honest message "we have none in that price and storage range, so we have shown
+  you the closest matches from other brands". Added a brand regression test.
+- **Stage 9 email module: `backend/src/email.js`.** Order confirmation (plain text
+  + escaped HTML), new-order alert to admin (feature 23), status update
+  (feature 22). Installed `form-data@4.0.1` and `mailgun.js@11.1.0` as the owner
+  specified. **Live send verified against the real Mailgun API**, message id
+  returned.
+- **Two real bugs found by testing, not reading:**
+  1. **`dotenv` was never loaded by the server** — only by `seed_products.js`. The
+     running backend therefore had NO Supabase and NO Mailgun keys, and would
+     have reported "email not configured" forever while looking like unfinished
+     work. Fixed at both entry points (`server.js`, `netlify/functions/api.js`,
+     the latter with `override: false` so a stray local .env can never beat a real
+     deployed variable). Startup now prints what is configured.
+  2. **`S_MEDIUM` vs `S_MED` NameError** in the brand persona test I added last
+     session — the persona suite was crashing on exit, so 10/10 could not be
+     confirmed. Fixed; suite passes again, exit 0.
+- Added `backend/.env.example` documenting every variable with no secrets in it.
+- Committed `ee11ba2`. Verified: the Mailgun private key is in **no tracked
+  file**, has **never been committed** (`git log --all -p` returns 0 hits), and
+  `scripts/check-for-secrets.sh` passes. `.env` is `600` and git-ignored.
+**Problems or errors:**
+- The owner's Mailgun key and the Supabase DB password are both now in the chat
+  history and must be **rotated before launch**. Both are correctly stored in
+  `backend/.env` and absent from git, but chat logs are not something we control.
+- `setsid nohup ... &` inside a tool call kept getting SIGTERM'd with the shell.
+  `nohup setsid node ... &` + `disown` survives. Worth remembering.
+**State at the end:** M1-M4 and M7 done. Stages 1, 2, 10 done. Stage 9's email
+MODULE is done and verified live, but nothing calls it yet: **`POST /orders` does
+not exist (that is Stage 5)**. Stage 3 (Supabase tables seeded, product list from
+the DB) still needs the owner to run the SQL. Nothing deployed.
+**Next steps:**
+1) **Stage 5 (checkout + `POST /orders`)** is now the blocker for Stage 9 — an
+   email module with no order route cannot be proven end to end.
+2) Stage 3: owner runs `backend/src/db/RUN_THIS_IN_SUPABASE.sql`, then seed.
+3) Rotate both leaked secrets before any deployment.
+4) Deploy to Vercel + Netlify; model service to Render/Railway (D35, warm
+   container, never serverless).
