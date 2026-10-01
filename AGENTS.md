@@ -130,6 +130,8 @@ Status: **Confirmed** means the owner said it. **Assumed** means an agent chose 
 | D36 | The `products` table is the source of truth for **price and stock**; `model/data/phones.csv` is the source of truth for the **specs the model scores**. Both use the same `product_id`, which is what keeps the two from drifting apart. A product detail rename or stock change made in admin is immediately true in the shop | Confirmed (Session 13, built as Stage 3) |
 | D37 | The backend sends the model the ids that are currently sellable, and the model applies them as an **intersection** — it can only remove candidates, never add. This replaces the Session 7 decision to reject `candidate_ids` outright, which was correct when the CSV was the only source of stock but would let the model recommend sold-out phones once orders started decrementing the database. The hard filters still run afterwards, so nothing can be smuggled past budget, storage, stock or active | Confirmed (Session 13) |
 | D38 | Identity is decided ONLY by the verified Supabase token plus the `profiles.role` column. A role in a request body or in a JWT claim is ignored. Token verification uses the **publishable** key on purpose: using the secret key would make the auth path depend on a privileged credential, and a missing one would silently sign everyone out instead of failing loudly. The first admin is promoted by hand, so admin is never self-assignable at signup | Confirmed (Session 13) |
+| D39 | Sign-in offers **both** Google and email+password as equal choices, not one with the other as a fallback. The owner asked for a non-Google path explicitly. This means email confirmation must stay ON: it is the only thing stopping a stranger creating a usable account with somebody else's address (measured in Session 13). `mailer_autoconfirm` is now a locked setting | Confirmed (Session 13, owner request) |
+| D40 | The Supabase `sb_publishable_` key is treated as public, not as a secret. It is designed to be in the browser bundle and its power is bounded by RLS; sign-in cannot work without it. Only `sb_secret_` is a leak. `scripts/check-for-secrets.sh` was narrowed to match, after verifying the bundle held no secret key — and re-verified by planting a real fake `sb_secret_` in a tracked file and in the build output, both of which still fail the build | Assumed (Session 13, verified) |
 
 When a decision changes, add a new row. Do not delete old rows. Mark the old one "Replaced by D#".
 
@@ -1126,4 +1128,71 @@ deployed, nothing pushed to GitHub yet.
 3. Stage 10's remaining gaps: `recommendation_sessions` logging and the
    "Was this helpful?" feedback buttons.
 4. Rotate the Supabase DB password and the Mailgun private key before deploying.
+
+### Session 13b: 2026-10-01
+
+**Agent/model:** Cline
+**Goal of the session:** The owner asked for a way to sign up and sign in with a
+name, email and password instead of Google, and asked whether any API key was
+needed. Build it, and prove the security posture rather than assume it.
+**What was done:**
+
+- **Answered the key question first: no new key is needed.** Supabase handles
+  email/password entirely from the publishable key, which the agent added to
+  `frontend/.env.local` (public by design, git-ignored, verified ignored).
+- Built `/signup`, `/forgot-password`, `/reset-password`, and an email form on
+  `/signin`. Google and email are EQUAL choices with an "or" divider, not a
+  primary and a fallback (D39).
+- **Privacy choices made deliberately, and both are commented in the code:**
+  `/forgot-password` shows the SAME message whether or not the address exists
+  (otherwise it is an address-enumeration tool), and sign-in never distinguishes
+  "no such account" from "wrong password". Signup DOES surface Supabase's own
+  wording, because there the person already knows the address and hiding it only
+  makes "I forgot I already signed up" unfixable.
+- Signup does **not** auto-sign-in. That is not an oversight: email confirmation
+  is the control that makes signup safe, so signing in early would be a lie.
+
+**Decisions made:** D39 (Google and email are equal paths; email confirmation is
+therefore a locked setting), D40 (the publishable key is public, only
+`sb_secret_` is a leak).
+**Problems or errors:**
+
+- **Proved the spam-account risk instead of describing it.** A signup with only
+  the public key returned `200` and created a real user. Then signing in as that
+  user returned `email_not_confirmed`, and `email_confirmed_at` was null — so a
+  spammer CAN create rows but CANNOT sign in, place orders, or reach admin. Test
+  user deleted; 0 users before and after; the 10 real orders untouched.
+- **BLOCKER FOUND AND MEASURED: signup returns `429
+  over_email_send_rate_limit`.** Supabase's free mailer allows ~2 emails/hour and
+  is already exhausted, so email signup, confirmation and password reset will all
+  fail until SMTP is configured. The project already has Mailgun credentials, so
+  this is a dashboard setting, not new infrastructure. Google is unaffected.
+- **Two real bugs the build caught, both from line-number inserts into
+  half-written files leaving orphan code behind.** (1) `Too many re-renders` on
+  `/reset-password` and `/signup`: `onAuthStateChange` re-emits a NEW session
+  object, so `setSession(next)` always looked like a change and re-rendered
+  forever; fixed by comparing the access TOKEN. (2) **Worse and silent** — the
+  orphan lines had pushed `setDone(true)` clean out of the submit handler in BOTH
+  `/signup` and `/reset-password`, so a successful signup or password change would
+  have left the button stuck on "Creating your account..." forever with no
+  confirmation panel and no error. Found only because the build error pointed at
+  line 199, past the end of the component.
+- **The secret scanner was wrong and failed every build.** It treated the
+  `sb_publishable_` key as a leak. Verified the bundle held only that key and
+  zero `sb_secret_` values BEFORE changing anything, then narrowed the pattern so
+  only `sb_secret_` fails hard, and re-verified by planting a fake `sb_secret_` in
+  a tracked file and in the build output — both still fail. Narrowed, not
+  silenced.
+- Left `frontend/src/app/phones/page.jsx` out of this commit: it carried an
+  unrelated pre-existing uncommitted change (an error-swallowing try/catch) that
+  does not belong mixed into an auth commit.
+**State at the end:** Stage 6 code complete for BOTH Google and email/password.
+`next build` passes with 15 routes; all four auth pages return 200; secret scan
+passes; personas still 10/10. Committed `0c124a8`. Nothing pushed or deployed.
+**Next steps:**
+1. **OWNER:** enable the Google provider in Supabase and add the redirect URLs.
+2. **OWNER (top blocker):** configure SMTP in Supabase -> Authentication -> Email
+   using the existing Mailgun account, or email signup stays unusable.
+3. **OWNER:** set `profiles.role = 'admin'` for the first admin.
+4. Stage 7 (admin products) and Stage 8 (admin orders) are unblocked.
 5. Push to GitHub, then deploy.
