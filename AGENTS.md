@@ -1165,8 +1165,25 @@ therefore a locked setting), D40 (the publishable key is public, only
 - **BLOCKER FOUND AND MEASURED: signup returns `429
   over_email_send_rate_limit`.** Supabase's free mailer allows ~2 emails/hour and
   is already exhausted, so email signup, confirmation and password reset will all
-  fail until SMTP is configured. The project already has Mailgun credentials, so
-  this is a dashboard setting, not new infrastructure. Google is unaffected.
+  fail until a real SMTP provider is configured. Google is unaffected because it
+  sends no email.
+- **AND THE OBVIOUS FIX IS BLOCKED — Mailgun CANNOT do it, proven over SMTP.**
+  `backend/.env` has `MAILGUN_DOMAIN=sandboxbb3ee46c055d406bb6f5162dc99a206d
+  .mailgun.org` and the domains API reports **`type: sandbox`**, `state: active`.
+  Measured directly against `smtp.mailgun.org:587`:
+    - port 587 reachable, banner `220 Mailgun Influx ready`, EHLO ok
+    - `AUTH LOGIN` as `postmaster@<sandbox domain>` → **`535 Authentication failed`**
+    - the SAME key succeeds on `api.mailgun.net` (HTTP 200), and the account has
+      **0 non-sandbox domains**, so the key is valid and the rejection is the
+      sandbox domain itself
+  A Mailgun sandbox domain is for API testing only: it sends solely to whitelisted
+  test addresses and cannot authenticate over SMTP at all. So it is **not** a valid
+  SMTP provider for Supabase. The owner must add a real domain in Mailgun (free on
+  the $0/month plan, needs a domain with DNS records) or use a different provider
+  (Resend, Brevo and Mailjet all have free tiers). **Do not tell the owner that
+  Mailgun fixes this until a real domain exists and SMTP auth has been re-tested.**
+  This corrects the earlier assumption in this session that Mailgun could simply be
+  pointed at by Supabase.
 - **Two real bugs the build caught, both from line-number inserts into
   half-written files leaving orphan code behind.** (1) `Too many re-renders` on
   `/reset-password` and `/signup`: `onAuthStateChange` re-emits a NEW session
@@ -1191,8 +1208,11 @@ therefore a locked setting), D40 (the publishable key is public, only
 passes; personas still 10/10. Committed `0c124a8`. Nothing pushed or deployed.
 **Next steps:**
 1. **OWNER:** enable the Google provider in Supabase and add the redirect URLs.
-2. **OWNER (top blocker):** configure SMTP in Supabase -> Authentication -> Email
-   using the existing Mailgun account, or email signup stays unusable.
+2. **OWNER (top blocker):** the email path needs a REAL SMTP provider. Mailgun
+   cannot do it — the current domain is `type: sandbox` and SMTP auth returns 535
+   (proven above). Add a real Mailgun domain, or switch to Resend/Brevo/Mailjet
+   (all free tiers), then paste me the SMTP host/port/user/password and I will
+   configure Supabase and re-test the whole signup flow end to end.
 3. **OWNER:** set `profiles.role = 'admin'` for the first admin.
 4. Stage 7 (admin products) and Stage 8 (admin orders) are unblocked.
 5. Push to GitHub, then deploy.
