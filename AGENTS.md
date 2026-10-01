@@ -48,9 +48,9 @@ The shop also includes:
 
 ## 3. Status board
 
-**Last updated:** 2026-10-01 (Session 9)
+**Last updated:** 2026-10-01 (Session 10)
 
-**Current phase:** Model track **M1–M4 all DONE**. Shop track: **Stage 1 and Stage 2 DONE and verified live locally**, and the questionnaire screens (`/find`, `/results`) are built on top of them. All pushed to GitHub. Nothing is deployed to Vercel/Netlify yet. Next: **Stage 3 (Supabase)**, or deploy what exists.
+**Current phase:** Model track **M1–M4 and M7 (service) DONE**. Shop track: **Stage 1, Stage 2 DONE**, questionnaire screens built, and **Stage 10 mostly done — `/results` now returns REAL ranked phones from the Random Forest** (Session 10). All committed and pushed. Nothing deployed to Vercel/Netlify yet. Next: **Stage 3 (Supabase)**, which unlocks session logging, orders and checkout.
 
 | Item | Status |
 |---|---|
@@ -60,7 +60,7 @@ The shop also includes:
 | Existing model | **Audited (M1, Session 4).** Python 3.12, transparent weighted scorer + a Random Forest distilled from it. Lives in `model/legacy/`. No real labeled data |
 | Model rework | M1–M4 done. Random Forest ships (D34). `model/data/phones.csv` (63 phones, 0 missing), `shop_recommender.recommend()`, 10/10 personas pass. Next: M5 |
 | Shop Stage 1 | **Built and VERIFIED locally (Session 7).** Next.js 16.3.8 serves the page, fetches `/hello`, backend CORS returns the right origin. Not deployed yet|
-| Code written | Yes: backend (Node/Express) + frontend (Next.js) + `API_CONTRACT.md`, `README.md`. **All committed (`8ba5ef2`)** but **not pushed to GitHub yet** |
+| Code written | Yes: backend (Node/Express) + frontend (Next.js) + **model service (FastAPI)** + `API_CONTRACT.md`, `README.md`. All committed and pushed (`367e9c7` is the latest) |
 | Agent role | Agent writes the code, owner reviews and runs it (D25) |
 | Accounts created (Supabase, Mailgun, Google Cloud, Vercel, Netlify) | Not confirmed, not needed until Stage 3+ (D27) |
 
@@ -533,7 +533,7 @@ The **2m+ band has only 2 phones** and heavy storage under NGN150k has only **1*
 | M4 | Shop recommender: hard filters (budget, stock, storage) THEN the Random Forest ranks, then top 5 with reasons from scoring.py. The hard filters are what must be new — the forest cannot enforce budget or stock itself | Runs locally and gives sensible results for 10 test personas | **Done (Session 7)** |
 | M5 | Retrain and improve the forest once real data exists. Sources in order: team-labeled personas, then real feedback and orders. Until then it can only reproduce the rule scorer (see D34) | Beats the current forest on the persona test set | Not started |
 | M6 | Evaluate. Build a test set of at least 20 personas (varied budgets and needs) with acceptable answers agreed by the team. Check hard rules | Target met (assumed: an acceptable phone is in the top 3 for at least 80% of personas; budget is never exceeded; out-of-stock phones never appear) | Not started |
-| M7 | Package as FastAPI with `/recommend`, `/health`, `/version`. Deploy to Render or Railway. Freeze the contract | The backend gets results in under 3 seconds | Not started |
+| M7 | Package as FastAPI with `/recommend`, `/health`, `/version`. Deploy to Render or Railway. Freeze the contract | The backend gets results in under 3 seconds | **Service DONE locally (Session 10), NOT deployed** |
 | M8 | Feedback loop: sessions logged, feedback and orders linked to sessions, retraining plan agreed | Admin model page shows real session data | Not started |
 
 ### Model rules (apply to every version)
@@ -668,7 +668,7 @@ Do the stages in order. Do not start a stage until the one before it is marked D
 | 7 | Admin: products, stock, and feature fields | Admin can add, edit, and set stock for a phone | Not started |
 | 8 | Admin: orders and status updates | Admin can change an order's status | Not started |
 | 9 | Mailgun emails (customer and admin) | Customer gets an order email in under a minute | Not started |
-| 10 | Questionnaire and results pages connected to the model through `POST /recommend`, with session logging and feedback | A shopper answers 5 questions, sees ranked phones with reasons in under 3 seconds, and can add one to the cart | Not started |
+| 10 | Questionnaire and results pages connected to the model through `POST /recommend`, with session logging and feedback | A shopper answers 5 questions, sees ranked phones with reasons in under 3 seconds, and can add one to the cart | **MOSTLY DONE (Session 10).** Real ranked results live locally. Session logging + feedback buttons still missing |
 | 11 | Admin model page, deployment checks, and real usability test | 2 of 3 real testers finish the flow from questionnaire to order unaided | Not started |
 
 **Stage 1 note:** an earlier chat gave Stage 1 as `npx create-next-app@latest phone-shop` with TypeScript No, ESLint Yes, Tailwind Yes, `src/` Yes, App Router Yes. The architecture then changed to split hosting, so the Next.js app should only do the UI. Confirm the owner's progress, then continue.
@@ -885,3 +885,26 @@ Rule: finish and confirm one phase before starting the next, except that the mod
 2) Deploy Stage 1+2 to Vercel + Netlify (D9 split still assumed; open question 4).
 3) **M7 then Stage 10** to make the questionnaire return real rankings. `/results` deliberately shows an honest "not available yet" message and `POST /recommend` returns 501 — only those need to change.
 4) M5 is blocked on real labeled data; M6 needs 20+ personas.
+
+### Session 10: 2026-10-01
+
+**Agent/model:** Cline
+**Goal of the session:** Make the questionnaire return REAL rankings instead of the honest placeholder. This is M7 (the model service) plus the main part of Stage 10.
+**What was done:**
+- **M7 service written and running: `model/service/main.py`.** FastAPI with `/health`, `/version` and `POST /recommend`, wrapping the existing `shop_recommender.recommend()`. Deliberately in-process (D35): the 41 MB artifact and the 5.5 s cold load mean this must be a warm container, never a Netlify function.
+- **Backend `POST /recommend`** proxies to the model service and returns ranked picks with reasons, ratings and specs. Verified the full chain model → backend → browser.
+- **`/results` rewritten** (`frontend/src/app/results/page.jsx` + `frontend/src/components/ResultList.jsx`). It now renders real ranked phones: rank, naira price, reason lines, Excellent/Good/Fair ratings, and working **Add to cart**, **View details** and **Change my answers**. The honest "not available yet" placeholder and the 501 are gone.
+- **One real bug caught by testing the actual payload.** The mapper rejected the exact label strings the frontend sends (`Medium  (128GB is enough)` vs the config's `Medium (128GB)` — a double space and different wording). Fixed in `model/src/questionnaire_mapper.py` so it accepts what the UI actually produces. Found only because I sent a hand-typed payload and it was rejected loudly instead of silently mis-ranking.
+- Verified end to end: camera persona NGN300k–500k → Camon 40 Pro 5G (#1, "Strong camera for your needs"), Camon 50 Pro 4G, Camon 50 4G. Prices render as ₦400,000 etc. All 4 other pages still 200. **10/10 personas still pass.** The thin-catalog path still shows "only a few phones fit".
+- Committed and pushed: `367e9c7`.
+**Decisions made:** none new. D34 (forest ships) and D35 (warm container) already covered this; the service was built to those constraints.
+**Problems or errors:**
+- Two of my own test payloads were wrong (I hand-typed questionnaire labels). The service rejected them with a precise message listing the valid labels — good behaviour, but it cost me a cycle. The frontend sends the config's real labels, so this is not a product bug.
+- Two greps I ran to "prove prices were missing" and "prove ratings were missing" were both wrong: prices use the ₦ symbol not "NGN", and Next.js splits JSX text with HTML comments. The DOM was correct both times. This is the third time this exact false alarm has happened — noted so the next session greps for the rendered form, not the source form.
+**State at the end:** M1–M4 and M7 DONE. Stage 1, 2 and most of 10 DONE, all verified live locally and committed (`367e9c7`). **Still not deployed.**
+**Next steps:**
+1) **Stage 3 (Supabase)** — needs the owner's Supabase account; it is the first stage requiring cloud credentials (D27). It unlocks session logging, the feedback buttons, orders and checkout, which are the remaining parts of Stage 10 and all of Stages 5/6.
+2) Deploy to Vercel + Netlify (+ Render/Railway for the model service) — confirm the D9 split first (open question 4).
+3) **Remaining Stage 10 gaps:** `recommendation_sessions` logging and the "Was this helpful?" feedback buttons (feature 11). Both need the database, so they belong with Stage 3.
+4) M5 remains blocked on real labeled data; M6 needs 20+ personas.
+
