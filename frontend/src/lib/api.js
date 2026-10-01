@@ -151,6 +151,43 @@ export async function fetchQuestionnaire() {
   return apiFetch("/questionnaire");
 }
 
+// Talking to the admin API (Stage 7).
+//
+// Every call here goes to the BACKEND, never to Supabase directly. That is the
+// point of the admin area: the browser holds the publishable key, which is
+// intentionally NOT allowed to write to `products` (there is no insert/update
+// policy in row_level_security.sql). If the browser wrote directly, RLS would
+// correctly refuse it.
+//
+// The access token is required on every call. The backend verifies it and reads
+// the role from `profiles`; a non-admin gets 403 from the route itself, whatever
+// this file does.
+
+// Products for the admin list. Includes inactive and out-of-stock rows, which
+// the shop-facing GET /products deliberately hides.
+export async function fetchAdminProducts(authToken) {
+  return apiFetch("/admin/products", { authToken });
+}
+
+// Creates a product. Throws with a message written to be shown in the form.
+export async function createProduct(authToken, product) {
+  return apiFetch("/admin/products", {
+    method: "POST",
+    authToken,
+    body: JSON.stringify(product),
+  });
+}
+
+// Edits a product. Only the fields passed are changed, so a stock-only form
+// cannot accidentally clear the price.
+export async function updateProduct(authToken, id, product) {
+  return apiFetch(`/admin/products/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    authToken,
+    body: JSON.stringify(product),
+  });
+}
+
 // Asks the backend to rank phones for these questionnaire answers.
 //
 // The answers go to the BACKEND, never straight to the model service: only the

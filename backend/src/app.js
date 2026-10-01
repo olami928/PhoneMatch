@@ -10,6 +10,7 @@ const fs = require("fs");
 const path = require("path");
 const products = require("./products");
 const auth = require("./auth");
+const admin = require("./admin");
 const orders = require("./orders");
 const email = require("./email");
 
@@ -98,10 +99,61 @@ app.get("/auth/me", (req, res) => {
   });
 });
 
+// --- Stage 7: admin products -------------------------------------------------
+//
+// Every route below is behind `requireAdmin`, which runs BEFORE the handler.
+// That ordering is the security property: a non-admin is refused before any
+// database read happens, so they cannot learn what products exist, let alone
+// change one. Hiding the admin links in the UI is not part of this.
+
+// Lists products for admin, including inactive and out-of-stock ones.
+app.get("/admin/products", auth.requireAdmin, async (req, res) => {
+  try {
+    res.json(await admin.listForAdmin());
+  } catch (err) {
+    console.error("admin listForAdmin failed:", err.message);
+    res.status(500).json({ error: "Could not load the product list." });
+  }
+});
+
+// Adds a product.
+app.post("/admin/products", auth.requireAdmin, async (req, res) => {
+  try {
+    const product = await admin.createProduct(req.body);
+    // 201, and the created row back, so the form can show what was actually saved
+    // rather than what the browser hoped it sent.
+    res.status(201).json({ product });
+  } catch (err) {
+    if (err instanceof admin.AdminValidationError) {
+      return res.status(400).json({ error: err.message });
+    }
+    console.error("admin createProduct failed:", err.message);
+    res.status(500).json({ error: "Could not save the product." });
+  }
+});
+
+// Edits a product. Feature 19 and feature 20: full spec fields plus stock.
+app.put("/admin/products/:id", auth.requireAdmin, async (req, res) => {
+  try {
+    const product = await admin.updateProduct(req.params.id, req.body);
+    res.json({ product });
+  } catch (err) {
+    if (err instanceof admin.AdminValidationError) {
+      // 404 for an unknown id, 400 for bad values: the form shows the message
+      // as-is, so it has to be written for a human.
+      return res.status(err.message.startsWith("No product") ? 404 : 400).json({
+        error: err.message,
+      });
+    }
+    console.error("admin updateProduct failed:", err.message);
+    res.status(500).json({ error: "Could not save the product." });
+  }
+});
+
 // A deliberately tiny admin route. It exists so the role gate can be TESTED
-// end to end without building the whole admin area first (Stage 7/8), and it is
-// the reference example every future admin route copies: `requireAdmin` runs
-// before any data is read, so a non-admin never reaches the database.
+// end to end without building the whole admin area first, and it is the
+// reference example every future admin route copies: `requireAdmin` runs before
+// any data is read, so a non-admin never reaches the database.
 app.get("/admin/ping", auth.requireAdmin, (req, res) => {
   res.json({
     status: "ok",
