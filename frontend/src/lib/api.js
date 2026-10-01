@@ -14,12 +14,27 @@ export { API_URL };
 // The backend returns { "error": "..." } for failures (see API_CONTRACT.md), so
 // we surface that message instead of "failed to fetch", which tells a shopper
 // nothing.
+//
+// `authToken` is the shopper's Supabase access token, passed in by the caller
+// (AuthProvider has it). It is sent as a Bearer token so the backend can verify
+// WHO is calling and check the admin role server-side (AGENTS.md section 11).
+// Guests send nothing and the backend treats them as guests, which is allowed
+// (D12). The token is read from the argument rather than from a global so this
+// module stays usable from a server component, where no React context exists.
 export async function apiFetch(path, options = {}) {
+  const { authToken, headers: extraHeaders, ...rest } = options;
+
   let response;
   try {
     response = await fetch(`${API_URL}${path}`, {
-      headers: { "Content-Type": "application/json" },
-      ...options,
+      ...rest,
+      headers: {
+        "Content-Type": "application/json",
+        // Only set when there is a token: sending `Bearer null` would make the
+        // backend treat a signed-in shopper as having a broken token.
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        ...extraHeaders,
+      },
     });
   } catch {
     throw new Error(
@@ -40,6 +55,13 @@ export async function apiFetch(path, options = {}) {
     );
   }
   return body;
+}
+
+// Asks the backend who the caller is. Used by the auth provider; the result is
+// deliberately not cached here, because the role can change (an admin promotion)
+// while the page stays open.
+export async function fetchMe(authToken) {
+  return apiFetch("/auth/me", { authToken });
 }
 
 // Builds a /products query string, skipping empty values so we never send
