@@ -110,7 +110,10 @@
     "lowest_price_extra_cap_why": "When top_priority = lowest price, cap the candidate set at 75% of budget_max, then re-sort the picks cheapest-first via questionnaire_mapper.reorder_for_lowest_price. MEASURED: the cap ALONE was not enough — the forest returned a NGN 556,000 phone as pick #1 while a NGN 98,100 Redmi 13C was available. The cap filters; the re-sort orders.",
     "storage_min_gb": "answers.storage.min_gb",
     "stock_gt": 0,
-    "active_true": true
+    "active_true": true,
+
+    "brand_min_candidates": 3,
+    "brand_min_candidates_why": "A shopper who names a brand gets ONLY that brand, but only if enough phones survive the price and storage rules. If fewer than this many survive, we fall back to every brand rather than show an empty or near-empty results page. MEASURED: 86 of the 144 (brand x budget x storage) combinations have ZERO candidates, so a strict hard filter would leave shoppers with nothing. This is a preference the shopper stated, not a rule we invented, so degrading it is better than showing zero results."
   },
 
   "priority_map": {

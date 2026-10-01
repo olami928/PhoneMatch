@@ -165,6 +165,48 @@ def main() -> int:
     if r2["total_candidates"]:
         failures.append("inactive phones were not filtered")
 
+    # --- brand preference must be honoured ------------------------------------
+    # REGRESSION TEST. The forest's brand features carry only ~1.2% of total
+    # importance and move a score by at most 0.7 points, which never reorders
+    # the top picks. So the forest silently ignored the brand answer: asking for
+    # Samsung returned TECNO phones. The filter now runs before scoring, and
+    # this test stops that breaking again unnoticed.
+    print("\n=== hard rule: brand preference is honoured ===")
+    brand_answers = {
+        "budget": _budget("300,000 - 500,000"),
+        "main_use": "Photos and video",
+        "top_priority": "Camera",
+        "storage": S_MED,
+    }
+
+    # itel has 4 phones in the catalog, so it is the one brand guaranteed to
+    # clear the 3-candidate floor in this band.
+    strict = dict(brand_answers, brand_preference="itel")
+    r3 = recommend(strict, df=phones)
+    picked_brands = {r["brand"] for r in r3["recommendations"]}
+    print(f"    asked for itel -> applied={r3.get('brand_filter_applied')}, "
+          f"{r3['total_candidates']} candidates, brands={sorted(picked_brands)}")
+    if r3.get("brand_filter_applied") and picked_brands != {"itel"}:
+        failures.append(
+            f"brand filter claimed to apply but returned {sorted(picked_brands)}")
+
+    # When the brand is impossible we must fall back AND say so, never silently
+    # swap the shopper's brand.
+    fallback = dict(brand_answers, brand_preference="Apple iPhone")
+    r4 = recommend(fallback, df=phones)
+    print(f"    asked for Apple iPhone -> applied={r4.get('brand_filter_applied')}, "
+          f"message={r4.get('message')}")
+    if not r4.get("brand_filter_applied") and not r4.get("message"):
+        failures.append("brand fallback happened but the shopper was not told")
+
+    # No preference must leave every brand in play.
+    open_ = dict(brand_answers, brand_preference="No preference")
+    r5 = recommend(open_, df=phones)
+    if r5.get("brand_filter_applied"):
+        failures.append("'No preference' was treated as a real brand filter")
+    if len({r["brand"] for r in r5["recommendations"]}) < 2:
+        failures.append("'No preference' returned only one brand")
+
     print("\n" + "=" * 60)
     if failures:
         print(f"FAIL: {len(failures)} hard-rule violation(s)")

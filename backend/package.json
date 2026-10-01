@@ -10,10 +10,12 @@
     "seed": "node src/db/seed_products.js"
   },
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.19.2",
-    "serverless-http": "^3.2.0",
     "@supabase/supabase-js": "^2.45.0",
-    "dotenv": "^16.4.5"
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "form-data": "^4.0.1",
+    "mailgun.js": "^11.1.0",
+    "serverless-http": "^3.2.0"
   }
 }

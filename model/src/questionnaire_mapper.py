@@ -135,6 +135,8 @@ def map_answers(answers: dict):
         "active_true": CONFIG["hard_filters"]["active_true"],
         "budget_min_ngn": budget_min,          # reporting only, NOT a filter
         "wants_lowest_price": wants_lowest_price,
+        "brand_preference": brand,
+        "brand_min_candidates": CONFIG["hard_filters"]["brand_min_candidates"],
     }
     return customer, filters
 
@@ -160,6 +162,30 @@ def apply_hard_filters(df, filters: dict):
         out = out[out["stock"] > filters["stock_gt"]]
     if "active" in out.columns:
         out = out[out["active"] == filters["active_true"]]
+
+    # --- brand preference -----------------------------------------------------
+    # MEASURED REASON THIS EXISTS: the forest's brand features carry only ~1.2%
+    # of total importance and move a phone's score by at most 0.7 points, which
+    # never reorders the top picks. A shopper who said "Samsung" was shown TECNO
+    # phones as the top 5. The forest simply does not enforce brand, so we do it
+    # here, BEFORE scoring, exactly like the other hard filters.
+    #
+    # It is a soft filter with a floor, not an absolute one: if too few phones
+    # survive we keep every brand rather than return an empty page. `filters`
+    # records which happened so the results page can say so honestly.
+    wanted = filters.get("brand_preference", "Any")
+    if wanted and wanted != "Any" and "brand" in out.columns:
+        same_brand = out[out["brand"].astype(str).str.strip().str.lower()
+                         == str(wanted).strip().lower()]
+        if len(same_brand) >= filters["brand_min_candidates"]:
+            out = same_brand
+            filters["brand_filter_applied"] = True
+        else:
+            # Too few phones of that brand. Showing nothing helps nobody, so we
+            # widen the choice and tell the shopper we did.
+            filters["brand_filter_applied"] = False
+            filters["brand_filter_fallback_from"] = wanted
+            filters["brand_filter_fallback_count"] = int(len(same_brand))
 
     return out.reset_index(drop=True)
 

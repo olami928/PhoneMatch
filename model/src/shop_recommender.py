@@ -195,12 +195,29 @@ def recommend(answers: dict, df: pd.DataFrame | None = None, n: int = 5) -> dict
             },
         })
 
+    # Two honest notices, because both conditions are real and the shopper
+    # would otherwise think the model ignored them.
+    notices = []
+    if len(candidates) < n:
+        notices.append(
+            "Only a few phones fit every answer, so these are all of them.")
+    if filters.get("brand_filter_fallback_from"):
+        wanted = filters["brand_filter_fallback_from"]
+        found = filters.get("brand_filter_fallback_count", 0)
+        # Say "none", not "0", which reads like a bug.
+        detail = ("we have none in that price and storage range"
+                  if found == 0 else
+                  f"only {found} in that price and storage range")
+        notices.append(
+            f"You asked for {wanted}, but {detail}, so we have shown you "
+            f"the closest matches from other brands.")
+
     return {
         "model_version": MODEL_VERSION,
         "recommendations": out,
         "total_candidates": int(len(candidates)),
+        "brand_filter_applied": bool(filters.get("brand_filter_applied")),
         # Thin catalog is a real condition here (M3 measured 2m+ at 2 phones),
         # so say so rather than showing 2 results as if they were 5.
-        "message": ("Only a few phones fit every answer, so these are all of them."
-                    if len(candidates) < n else None),
+        "message": " ".join(notices) if notices else None,
     }
