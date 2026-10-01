@@ -205,15 +205,79 @@ app.get("/questionnaire", (req, res) => {
   res.json({ version: config.version, questions });
 });
 
-// POST /recommend is the real recommendation call, and it is NOT built yet: it
-// needs the Python model service (M7). Returning a clear 501 stops the
-// questionnaire from looking broken while the model is being deployed, and
-// records the dependency in one visible place.
-app.post("/recommend", (req, res) => {
-  res.status(501).json({
-    error:
-      "The recommendation service is not connected yet. It is deployed at model step M7.",
-  });
+// POST /recommend forwards the shopper's 5 answers to the Python model service
+// and returns the ranked phones.
+//
+// WHY A PROXY AND NOT A DIRECT BROWSER CALL: the model service holds a secret
+// shared key and lives on a private network. AGENTS.md section 11 says only the
+// backend may call it, so the browser never sees its address.
+//
+// The backend passes the answers straight through and does NOT re-apply the
+// budget or storage rules itself. There is one implementation of the rules, in
+// the model service; duplicating them here would let the two drift apart and
+// could show a shopper a phone the model never approved.
+const MODEL_SERVICE_URL =
+  process.env.MODEL_SERVICE_URL || "http://localhost:8000";
+
+app.post("/recommend", async (req, res) => {
+  const answers = req.body || {};
+
+  // Reject an empty submission early and clearly, rather than forwarding
+  // nothing and letting the model return a confusing error.
+  const required = ["budget", "main_use", "top_priority", "storage"];
+  const missing = required.filter((key) => !answers[key]);
+  if (missing.length) {
+    return res.status(400).json({
+      error: `Missing answers: ${missing.join(", ")}`,
+    });
+  }
+
+  try {
+    const response = await fetch(`${MODEL_SERVICE_URL}/recommend`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // Shared secret so only this backend can call the model service.
+        ...(process.env.MODEL_SERVICE_KEY
+          ? { "X-Model-Key": process.env.MODEL_SERVICE_KEY }
+          : {}),
+      },
+      body: JSON.stringify(answers),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      // Bad answers come back as 400 from the model; pass the reason through so
+      // the questionnaire can show something useful.
+      return res.status(response.status).json({
+        error: payload.detail || payload.error || "The model service rejected these answers.",
+      });
+    }
+
+    res.json(payload);
+  } catch (err) {
+    // The model service being down must not look like a shopper mistake, so
+    // this is a 502 with an honest message rather than a 400.
+    console.error("model service unreachable:", err.message);
+    res.status(502).json({
+      error:
+        "Our recommendation model is not available right now. Please try again in a moment.",
+    });
+  }
+});
+
+// Exposes the model version so the shop can show it and log it with a session.
+app.get("/model/version", async (req, res) => {
+  try {
+    const response = await fetch(`${MODEL_SERVICE_URL}/version`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    res.json(await response.json());
+  } catch {
+    res.status(502).json({ error: "Model service unavailable." });
+  }
 });
 
 app.use((req, res) => {

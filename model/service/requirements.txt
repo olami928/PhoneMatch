@@ -1,0 +1,9 @@
+# Model service dependencies (step M7).
+#
+# NOTE: scikit-learn and pandas are NOT listed here. They already exist in
+# model/legacy/requirements.txt for the training code, and this service imports
+# the trained recommender, not the trainer. A deployment image needs both, so
+# build the image from model/legacy/requirements.txt plus this file.
+
+fastapi>=0.110
+uvicorn[standard]>=0.27

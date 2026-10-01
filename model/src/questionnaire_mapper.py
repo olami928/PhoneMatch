@@ -61,10 +61,18 @@ def map_answers(answers: dict):
     filters:  the hard constraints to apply BEFORE the forest runs.
     """
     # --- Q1 budget: range -> one maximum, because the model has no budget_min
-    band = answers.get("budget")
-    if band not in BUDGET_BANDS:
-        raise MappingError(f"budget must be one of {sorted(BUDGET_BANDS)}, got {band!r}")
-    band_opt = BUDGET_BANDS[band]
+    # Accepts EITHER the internal band key ("300000-500000") or the visible label
+    # ("NGN 300,000 - 500,000"). The frontend submits `option.label` for every
+    # question, so budget must accept a label too, or the live questionnaire
+    # payload is rejected. Found by running the real frontend payload through
+    # this function rather than by reading it.
+    band_raw = answers.get("budget")
+    if band_raw in BUDGET_BANDS:
+        band_opt = BUDGET_BANDS[band_raw]
+    else:
+        # Labels are matched case-insensitively via the shared helper, so a
+        # reworded question in the config needs no code change here.
+        band_opt = _find_option("budget", band_raw)
     budget_min, budget_max = band_opt["min"], band_opt["max"]
 
     # --- Q2 main use: validated so typos fail loudly instead of silently
@@ -196,11 +204,21 @@ def questionnaire_for_frontend():
     return {"version": CONFIG["version"], "questions": out}
 
 def _find_option(question_id: str, label):
-    """Find an option by its visible label, case-insensitively."""
+    """Find an option by its visible label OR its internal value.
+
+    Accepting both is deliberate. The frontend submits `option.label` for every
+    question, while the model service API may be called with the config's
+    internal `value` (e.g. "camera"). Both are legitimate, so both must work and
+    neither should need the caller to know which one the config happens to use.
+    """
     if label is None:
         raise MappingError(f"question {question_id!r} was not answered")
     for o in QUESTIONS[question_id]["options"]:
         if o["label"].lower() == str(label).lower():
+            return o
+    # Fall back to the internal value, case-insensitively.
+    for o in QUESTIONS[question_id]["options"]:
+        if str(o.get("value", "")).lower() == str(label).lower():
             return o
     valid = [o["label"] for o in QUESTIONS[question_id]["options"]]
     raise MappingError(f"{question_id} must be one of {valid}, got {label!r}")

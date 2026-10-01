@@ -128,3 +128,16 @@ function normaliseProduct(row) {
 export async function fetchQuestionnaire() {
   return apiFetch("/questionnaire");
 }
+
+// Asks the backend to rank phones for these questionnaire answers.
+//
+// The answers go to the BACKEND, never straight to the model service: only the
+// backend holds the model's shared key (AGENTS.md section 11). The backend
+// forwards them unchanged, so the rules that decide which phones are allowed
+// exist in exactly one place.
+export async function postRecommend(answers) {
+  return apiFetch("/recommend", {
+    method: "POST",
+    body: JSON.stringify(answers),
+  });
+}
