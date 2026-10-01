@@ -48,9 +48,9 @@ The shop also includes:
 
 ## 3. Status board
 
-**Last updated:** 2026-10-01 (Session 12)
+**Last updated:** 2026-10-01 (Session 13)
 
-**Current phase:** Model track **M1–M4 and M7 (service) DONE**. Shop track: **Stages 1, 2, 3, 5 and 10 DONE** — Supabase is live and seeded, orders save with real stock decrement, and both emails send end to end (Sessions 11–12). All committed. **Nothing deployed to Vercel/Netlify.** Next: **Stage 6 (Google login + roles)** or finishing the Stage 3 goal of reading the product list from the database.
+**Current phase:** Model track **M1–M4 and M7 (service) DONE**. Shop track: **Stages 1, 2, 3, 5, 6 (code) and 10 DONE** — Supabase is live and seeded, orders save with real stock decrement, both emails send end to end, `/products` now reads the database, and Google sign-in plus the admin role gate are built. All committed. **Nothing deployed to Vercel/Netlify.** **Google sign-in cannot work until the owner completes two Supabase dashboard steps (Session 13).** Next: **Stage 7 (admin products) and Stage 8 (admin orders)**, which are now unblocked.
 
 | Item | Status |
 |---|---|
@@ -60,33 +60,21 @@ The shop also includes:
 | Existing model | **Audited (M1, Session 4).** Python 3.12, transparent weighted scorer + a Random Forest distilled from it. Lives in `model/legacy/`. No real labeled data |
 | Model rework | M1–M4 done. Random Forest ships (D34). `model/data/phones.csv` (63 phones, 0 missing), `shop_recommender.recommend()`, 10/10 personas pass. Next: M5 |
 | Shop Stage 1 | **Built and VERIFIED locally (Session 7).** Next.js 16.3.8 serves the page, fetches `/hello`, backend CORS returns the right origin. Not deployed yet|
-| Code written | Yes: backend (Node/Express) + frontend (Next.js) + **model service (FastAPI)** + `API_CONTRACT.md`, `README.md`. All committed and pushed (`367e9c7` is the latest) |
+| Code written | Yes: backend (Node/Express) + frontend (Next.js) + **model service (FastAPI)** + `API_CONTRACT.md`, `README.md`. Latest commits `0ca3278` (Stage 3), `b330bf4` (Stage 6) |
 | Agent role | Agent writes the code, owner reviews and runs it (D25) |
-| Accounts created (Supabase, Mailgun, Google Cloud, Vercel, Netlify) | Not confirmed, not needed until Stage 3+ (D27) |
+| Accounts created (Supabase, Mailgun, Google Cloud, Vercel, Netlify) | Supabase and Mailgun **live and working**. Google Cloud **not set up** (blocks sign-in) |
 
 ### Next action for the next agent
 
-1. ~~Share the existing model~~ **DONE (Session 4).** Uploaded and audited; see the audit box in section 8.
-2. ~~Where does the phone catalog come from~~ **ANSWERED (Session 4).** `model/legacy/data/phone_catalog_ng.csv`, 71 phones (63 with a verified price). See D30.
-3. ~~Does labeled data exist~~ **ANSWERED (Session 4).** No real labeled data. v1 is the baseline (D22/D29 confirmed).
-4. Hosting split (frontend on Vercel, backend on Netlify) — assumed, D26/D27. Confirm when Stage 1 is deployed.
-5. Repo layout — assumed and now in place: `frontend/`, `backend/`, `model/`, `docs/` (D26).
-6. **Finish Stage 1:** verify the frontend shows the backend message in a browser, then deploy to Vercel + Netlify.
-7. **Start M2:** ~~freeze the questionnaire and write the answer-to-feature-and-weight map as a config file~~ **DONE (Session 5).** `model/config/questionnaire_v1.json` + tested `model/src/questionnaire_mapper.py`; map table is in the M2 box in section 8.
-8. ~~Build `model/data/phones.csv` with a stable `product_id`, all required features, and no missing values.~~ **DONE (Session 6).** 63 phones, 0 missing values, ids verified to join. See the M3 box.
-9. ~~**M4** the shop recommender~~ **DONE (Session 7).** `model/src/shop_recommender.py` + `test_personas.py`, 10/10 pass. See the M4 box.
-10. ~~**Commit everything to git**~~ **DONE (Session 8).** 47 files, commit `8ba5ef2`. Verified by rebuilding from a clean clone. Not yet pushed to GitHub.
-11. ~~**Push to GitHub**~~ **DONE (Session 8).** Pushed. Still **NOT deployed** to Vercel/Netlify.
-12. **Finish Stage 3 properly** (Session 12): switch `GET /products` from
-    `model/data/phones.csv` to the `products` table, so the stock shown in the
-    shop matches the stock orders decrement. The table is seeded and real; only
-    the read is still on the CSV.
-13. **Stage 6:** Google login and roles, then `/admin`. Needed before Stages 7, 8
-    and 11 can be built.
-14. **Rotate the Supabase DB password and the Mailgun private key before any
-    deployment.** Both are in the chat history. They are correctly stored in
-    `backend/.env` (git-ignored, `600`) and verified absent from all tracked
-    files, but chat logs are not something we control.
+1. **OWNER ACTION, BLOCKING Google sign-in** (Session 13). Two Supabase dashboard steps, no code involved:
+   - **Authentication -> Providers -> Google: turn it ON**, paste the Google Client ID and Client Secret from Google Cloud Console.
+   - **Authentication -> URL Configuration -> Redirect URLs: add** `http://localhost:3000/auth/callback`, plus the Vercel production and preview URLs (section 11).
+   Then add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to `frontend/.env.local`. Full steps are in the Session 13 entry.
+2. **OWNER ACTION: promote the first admin.** Sign in once, then in Supabase set `profiles.role = 'admin'` for that user. It cannot be self-assigned by design.
+3. **Stage 7 (admin products and stock)** and **Stage 8 (admin orders and status)**. Both are unblocked now that `requireAdmin` exists. `GET /admin/ping` is the reference route.
+4. **Stage 10's remaining gaps:** `recommendation_sessions` logging and the "Was this helpful?" feedback buttons (feature 11). The table exists and is unblocked.
+5. **Rotate the Supabase DB password and the Mailgun private key before any deployment.** Both are in the chat history.
+6. Deploy to Vercel + Netlify, model service to Render/Railway (D35, warm container, never serverless). Confirm the D9 hosting split (open question 4).
 
 **Update (Session 3):** a full phase plan (A to G) is at the end of the Session 3 entry.
 
@@ -139,6 +127,9 @@ Status: **Confirmed** means the owner said it. **Assumed** means an agent chose 
 | D33 | M2 must MAP the D21 questionnaire (5 questions, one "top priority") onto the legacy input shape (4 separate low/medium/high priority sliders and a single budget maximum). It is a design step, not a copy of the legacy inputs | Assumed (Session 4) |
 | D34 | **v1 ranking engine is the Random Forest (`ml_recommender.py` + `src/ml_model.joblib`), NOT the rule-based scorer.** The owner decided this after being shown the distillation finding. The agent's recommendation was recorded and declined; the owner accepted the trade-offs knowingly. `scoring.py` is still used — but only to generate the reason lines and ratings, not to rank. Owner is the ML developer (D5), so the model design is the owner's call | Confirmed (Session 5) |
 | D35 | Because the RF artifact is 41 MB and takes 5.5s to load cold, the model MUST be a long-lived Python service with a warm process (M7 on Render/Railway, or a persistent container). It must NOT be loaded inside a Netlify serverless function, which has a hard execution limit and no warm state. This is a firm constraint, not a preference | Assumed (Session 5, from measured load times) |
+| D36 | The `products` table is the source of truth for **price and stock**; `model/data/phones.csv` is the source of truth for the **specs the model scores**. Both use the same `product_id`, which is what keeps the two from drifting apart. A product detail rename or stock change made in admin is immediately true in the shop | Confirmed (Session 13, built as Stage 3) |
+| D37 | The backend sends the model the ids that are currently sellable, and the model applies them as an **intersection** — it can only remove candidates, never add. This replaces the Session 7 decision to reject `candidate_ids` outright, which was correct when the CSV was the only source of stock but would let the model recommend sold-out phones once orders started decrementing the database. The hard filters still run afterwards, so nothing can be smuggled past budget, storage, stock or active | Confirmed (Session 13) |
+| D38 | Identity is decided ONLY by the verified Supabase token plus the `profiles.role` column. A role in a request body or in a JWT claim is ignored. Token verification uses the **publishable** key on purpose: using the secret key would make the auth path depend on a privileged credential, and a missing one would silently sign everyone out instead of failing loudly. The first admin is promoted by hand, so admin is never self-assignable at signup | Confirmed (Session 13) |
 
 When a decision changes, add a new row. Do not delete old rows. Mark the old one "Replaced by D#".
 
@@ -671,10 +662,10 @@ Do the stages in order. Do not start a stage until the one before it is marked D
 |---|---|---|---|
 | 1 | Frontend (Vercel) and a hello-world backend (Netlify), connected | The frontend shows a message fetched from the backend, both deployed | **Built and verified locally (Sessions 4, 7). NOT deployed** |
 | 2 | Product list, price filter, cart (fake data) | Browse, filter, and add to cart work locally | **DONE (Session 9), verified live locally** |
-| 3 | Supabase tables with real products and model features | The product list loads from the database | **PARTLY DONE (Session 12).** Schema applied via the pooler, RLS on, **63 products seeded and verified**. `GET /products` still reads the CSV, so **the product list shows stale stock** — that switch is the remaining part |
-| 4 | Backend routes for products and orders | Frontend reads products through the backend | **PARTLY DONE (Session 12).** `POST /orders` and `GET /orders/:id` are real. Product routes still serve the CSV |
+| 3 | Supabase tables with real products and model features | The product list loads from the database | **DONE (Session 13).** Schema applied, RLS on, 63 products seeded. `GET /products` and `GET /products/:id` now read the `products` table, verified by the shop showing **Redmi 13C as "Out of stock"** because live stock is 0 |
+| 4 | Backend routes for products and orders | Frontend reads products through the backend | **DONE (Session 13).** Both product routes now read the database |
 | 5 | Checkout that saves orders, with delivery estimate | A guest order is saved with its items, cart clears | **DONE (Session 12), verified live.** Real orders in Supabase, stock decremented, both emails sent |
-| 6 | Google login and role system | Sign in works, `/admin` blocks non-admins | Not started |
+| 6 | Google login and role system | Sign in works, `/admin` blocks non-admins | **CODE DONE (Session 13), BLOCKED on the owner.** `backend/src/auth.js` verifies tokens and gates admin routes; `/signin` and `/auth/callback` pages exist. **Cannot work until Google is enabled in Supabase and redirect URLs are added** |
 | 7 | Admin: products, stock, and feature fields | Admin can add, edit, and set stock for a phone | Not started |
 | 8 | Admin: orders and status updates | Admin can change an order's status | Not started |
 | 9 | Mailgun emails (customer and admin) | Customer gets an order email in under a minute | **DONE (Session 12), verified live.** Both emails fire from `POST /orders`; real Mailgun message IDs returned |
@@ -1050,3 +1041,89 @@ Committed `2d7c3bb`. Personas 10/10, secret scan passes, all pages 200.
 5) Deploy to Vercel + Netlify, model service to Render/Railway (D35, warm
    container, never serverless). Confirm the D9 hosting split first (open
    question 4).
+
+### Session 13: 2026-10-01
+
+**Agent/model:** Cline
+**Goal of the session:** Finish Stage 3 (product list reads the database, not the
+CSV), then build Stage 6 (Google sign-in and roles). The owner interrupted to
+confirm sign-in was not integrated, so Stage 6 was prioritised.
+**What was done:**
+
+- **Stage 3 DONE, and the bug it fixes was already live.** Before changing
+  anything, I measured the database: real orders from Session 12 had driven
+  **Redmi 13C to stock 0** and **Camon 40 Pro 5G to 6**, while the product list
+  was still reading the CSV's flat 10. The shop would have offered a sold-out
+  phone for "Add to cart". `GET /products` and `GET /products/:id` now read the
+  `products` table; filters run in SQL rather than in memory, and the brand list
+  comes from the database so the filter UI cannot offer a brand that returns
+  nothing. Verified in the browser: Redmi 13C renders "Out of stock" with no Add
+  button, and `in_stock=true` under NGN150k returns 0 phones.
+- **Fixed the deeper bug behind it.** Switching the shop to the database created
+  a NEW inconsistency: the model still read stock from the CSV, so it would keep
+  recommending the sold-out Redmi. The backend now sends the currently sellable
+  ids as `available_ids` and the model applies them as an **intersection**. This
+  is the security-sensitive part, so it was tested rather than assumed: a
+  fabricated id yields **0 rows** (cannot smuggle a phone in), `None` means
+  "unknown" and leaves the catalog untouched, an empty list means "nothing
+  sellable", and excluding the Redmi removes it from real recommendations.
+- **Stage 6 code DONE.** `backend/src/auth.js` verifies the Supabase token with
+  Supabase and reads the role from `profiles` — never from the request body,
+  never from the JWT claims. `requireAdmin` is the gate Stages 7/8 will copy.
+  `/signin` and `/auth/callback` pages, an `AuthProvider`, and a header that
+  shows the signed-in state. `POST /orders` records `user_id` from the verified
+  token so order history can work later.
+- **Refactored the duplicated Supabase client** into `supabaseClient.js`, so the
+  key-name check (the 2025 `secret`/`service_role` rename) lives in one place
+  instead of two that could drift.
+
+**Decisions made:** D36 (database owns price and stock, CSV owns model specs),
+D37 (`available_ids` as intersection, replacing the Session 7 refusal to accept
+candidate ids), D38 (identity from the verified token and `profiles.role` only;
+verification uses the publishable key; first admin promoted by hand).
+**Problems or errors:**
+- **A syntax error I introduced in `products.js`.** I inserted code by line
+  number into a file I had just written in two chunks, and the insert landed
+  *inside* `toProduct()`, splitting it in half while leaving its tail stranded
+  after `module.exports`. Caught by `node --check` on every file, which is now
+  part of the routine. Lesson: after a chunked file write, check the seams before
+  moving on.
+- **`fix_descriptions.js` silently repaired nothing on the first run** (0 of 63)
+  and I nearly trusted it. Cause: the matcher rebuilt the "old" description
+  using `catalog.js`, which I had *already fixed to round* — so it compared the
+  stored float text against already-corrected text and never matched. It had to
+  re-read the raw unrounded CSV rows. This is exactly the "looks like it worked,
+  did nothing" failure mode called out in section 15.
+- **A second near-miss in the same script:** the update wrote
+  `phone.description`, but `phone` was a raw CSV row with no such property, which
+  would have set the column to **null and blanked all 63 product descriptions**.
+  Caught by reading the write path before running it. Final result: 63 repaired,
+  0 null, 0 floats, and a second run is a clean no-op.
+- **I was editing against a stale server twice.** `pkill` in the same command
+  killed my own shell, and once an old process kept port 4000 so my new server
+  died with EADDRINUSE while the OLD code answered my tests. I briefly thought
+  my 400-status-code fix had not worked when it had. Must check
+  `ss -lptn 'sport = :4000'` and confirm the new PID before trusting a test.
+- Two test failures were **my test's fault, not the code's**: an unencoded space
+  in a `?search=` URL, and a `/products` call that needed a longer timeout.
+- Playwright's browser download timed out twice (the same flaky network that
+  made npm slow in Session 5). Verified the rendered pages via the
+  server-rendered HTML instead, which was sufficient for these checks.
+**State at the end:** Stages 1, 2, 3, 4, 5, 9 done. **Stage 6 code is complete
+but CANNOT WORK until the owner enables Google in Supabase and adds the redirect
+URLs** — two dashboard steps, no code. Committed `0ca3278` (Stage 3), `b330bf4`
+(Stage 6), `a6ad054` (carried-over styling). Personas still 10/10. `next build`
+passes with both new pages registered, and the secret scan passes. Nothing
+deployed, nothing pushed to GitHub yet.
+**Next steps:**
+1. **Owner:** enable the Google provider in Supabase and add
+   `http://localhost:3000/auth/callback` (plus the Vercel URLs) to the redirect
+   list, then add `NEXT_PUBLIC_SUPABASE_URL` and
+   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to `frontend/.env.local`. Then sign in
+   once and set `profiles.role = 'admin'` for that user.
+2. **Stage 7 and Stage 8** (admin products/stock, admin orders/status), now
+   unblocked. `GET /admin/ping` is the reference route for the role gate.
+3. Stage 10's remaining gaps: `recommendation_sessions` logging and the
+   "Was this helpful?" feedback buttons.
+4. Rotate the Supabase DB password and the Mailgun private key before deploying.
+5. Push to GitHub, then deploy.
