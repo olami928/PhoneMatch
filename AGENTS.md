@@ -48,9 +48,9 @@ The shop also includes:
 
 ## 3. Status board
 
-**Last updated:** 2026-10-01 (Session 8)
+**Last updated:** 2026-10-01 (Session 9)
 
-**Current phase:** Model track **M1–M4 all DONE and committed to git** (commit `8ba5ef2`, 47 files). Stage 1 is **built and verified locally** and is committed too. Nothing is deployed, and nothing has been pushed to GitHub yet. Next: push, then deploy Stage 1 to Vercel + Netlify.
+**Current phase:** Model track **M1–M4 all DONE**. Shop track: **Stage 1 and Stage 2 DONE and verified live locally**, and the questionnaire screens (`/find`, `/results`) are built on top of them. All pushed to GitHub. Nothing is deployed to Vercel/Netlify yet. Next: **Stage 3 (Supabase)**, or deploy what exists.
 
 | Item | Status |
 |---|---|
@@ -660,7 +660,7 @@ Do the stages in order. Do not start a stage until the one before it is marked D
 | Stage | What gets built | Done when | Status |
 |---|---|---|---|
 | 1 | Frontend (Vercel) and a hello-world backend (Netlify), connected | The frontend shows a message fetched from the backend, both deployed | **Built and verified locally (Sessions 4, 7). NOT deployed** |
-| 2 | Product list, price filter, cart (fake data) | Browse, filter, and add to cart work locally | Not started |
+| 2 | Product list, price filter, cart (fake data) | Browse, filter, and add to cart work locally | **DONE (Session 9), verified live locally** |
 | 3 | Supabase tables with real products and model features | The product list loads from the database | Not started |
 | 4 | Backend routes for products and orders | Frontend reads products through the backend | Not started |
 | 5 | Checkout that saves orders, with delivery estimate | A guest order is saved with its items, cart clears | Not started |
@@ -862,3 +862,26 @@ Rule: finish and confirm one phase before starting the next, except that the mod
 2) Deploy Stage 1 to Vercel + Netlify (D8/D9 assumed; confirm the split, open question 4).
 3) M5, which is blocked on something real: there is still no labeled data, so the forest can only reproduce the rule scorer (D34). M5 needs team-labeled personas, then real feedback and orders, before it can improve on the rules at all.
 4) M6 with 20+ personas and an agreed acceptable-answer set.
+### Session 9: 2026-10-01
+
+**Agent/model:** Cline
+**Goal of the session:** Build Stage 2 (product list, price filter, cart) against the real model catalog, then build the questionnaire screens on top of it.
+**What was done:**
+- **Stage 2 DONE and verified live.** Backend `GET /products` and `/products/:id` now read `model/data/phones.csv` — the same file the model scores — so the shop and the model cannot show different phones. Frontend got `/phones` (server-rendered list), `/phones/[id]` (detail with specs), `/cart`, and a real home page (the old Stage 1 hello-world page was replaced).
+- **Price filter runs on the SERVER via URL params**, so it is shareable, bookmarkable and works with the back button. Verified: the 150k–300k band returns 9 phones, matching the backend's own count.
+- **Cart is in local storage** (no database until Stage 3), capped at stock, and shows the delivery estimate IN the cart as AGENTS.md section 10 requires.
+- **Questionnaire screens built** (`/find`, `/results`). The five questions are NOT hardcoded in the UI: the backend reads the frozen `model/config/questionnaire_v1.json` and strips the internal `why`/`alias_of` notes, so the team can reword a question without touching code. Verified zero internal keys reach the browser. One question per screen, progress bar with ARIA, Back button, Skip on the optional question only.
+- Committed and pushed: `89c0af3` (Stage 2) and `98582a1` (questionnaire).
+**Decisions made:** none new. No decision was required; D21 (five preset questions) and D24 (honest wording) were already recorded and this session simply follows them.
+**Problems or errors:**
+- **Every page returned 500.** `CartProvider` is a NAMED export (`export function CartProvider`) but `layout.js` imported it as a default, giving `undefined`; React reported only "Element type is invalid", which points nowhere near the cause. Fixed to a braced import.
+- The home page was still the Stage 1 client-side hello-world test. Rewritten as a server-rendered shop home.
+- Two bad imports written by me and caught before running: `formatNaira` imported from `lib/api` instead of `lib/format`, and a `formatPrice` export that does not exist.
+- A `next dev` server started inside a tool call was killed with the shell (SIGTERM). Started it via `setsid` + a wrapper script so it survives.
+- Two "missing" greps were my own fault, not code bugs: Next.js SSR splits JSX text nodes with HTML comments, so `Question 1 of 5` appears as `Question <!-- -->1<!-- --> of <!-- -->5`. Confirmed the DOM is correct.
+**State at the end:** M1–M4 DONE. Stage 1 and Stage 2 DONE and verified live locally. Questionnaire screens built and working. All committed and pushed. **Nothing deployed.**
+**Next steps:**
+1) **Stage 3 (Supabase)** — needs the owner's Supabase account. This is the first stage that requires a cloud account (D27).
+2) Deploy Stage 1+2 to Vercel + Netlify (D9 split still assumed; open question 4).
+3) **M7 then Stage 10** to make the questionnaire return real rankings. `/results` deliberately shows an honest "not available yet" message and `POST /recommend` returns 501 — only those need to change.
+4) M5 is blocked on real labeled data; M6 needs 20+ personas.
