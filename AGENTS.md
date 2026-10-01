@@ -48,9 +48,9 @@ The shop also includes:
 
 ## 3. Status board
 
-**Last updated:** 2026-10-01 (Session 10)
+**Last updated:** 2026-10-01 (Session 12)
 
-**Current phase:** Model track **M1–M4 and M7 (service) DONE**. Shop track: **Stage 1, Stage 2 DONE**, questionnaire screens built, and **Stage 10 mostly done — `/results` now returns REAL ranked phones from the Random Forest** (Session 10). All committed and pushed. Nothing deployed to Vercel/Netlify yet. Next: **Stage 3 (Supabase)**, which unlocks session logging, orders and checkout.
+**Current phase:** Model track **M1–M4 and M7 (service) DONE**. Shop track: **Stages 1, 2, 3, 5 and 10 DONE** — Supabase is live and seeded, orders save with real stock decrement, and both emails send end to end (Sessions 11–12). All committed. **Nothing deployed to Vercel/Netlify.** Next: **Stage 6 (Google login + roles)** or finishing the Stage 3 goal of reading the product list from the database.
 
 | Item | Status |
 |---|---|
@@ -76,7 +76,17 @@ The shop also includes:
 8. ~~Build `model/data/phones.csv` with a stable `product_id`, all required features, and no missing values.~~ **DONE (Session 6).** 63 phones, 0 missing values, ids verified to join. See the M3 box.
 9. ~~**M4** the shop recommender~~ **DONE (Session 7).** `model/src/shop_recommender.py` + `test_personas.py`, 10/10 pass. See the M4 box.
 10. ~~**Commit everything to git**~~ **DONE (Session 8).** 47 files, commit `8ba5ef2`. Verified by rebuilding from a clean clone. Not yet pushed to GitHub.
-11. **Push to GitHub**, then deploy Stage 1 to Vercel + Netlify (D26 hosting split still assumed, open question 4).
+11. ~~**Push to GitHub**~~ **DONE (Session 8).** Pushed. Still **NOT deployed** to Vercel/Netlify.
+12. **Finish Stage 3 properly** (Session 12): switch `GET /products` from
+    `model/data/phones.csv` to the `products` table, so the stock shown in the
+    shop matches the stock orders decrement. The table is seeded and real; only
+    the read is still on the CSV.
+13. **Stage 6:** Google login and roles, then `/admin`. Needed before Stages 7, 8
+    and 11 can be built.
+14. **Rotate the Supabase DB password and the Mailgun private key before any
+    deployment.** Both are in the chat history. They are correctly stored in
+    `backend/.env` (git-ignored, `600`) and verified absent from all tracked
+    files, but chat logs are not something we control.
 
 **Update (Session 3):** a full phase plan (A to G) is at the end of the Session 3 entry.
 
@@ -661,13 +671,13 @@ Do the stages in order. Do not start a stage until the one before it is marked D
 |---|---|---|---|
 | 1 | Frontend (Vercel) and a hello-world backend (Netlify), connected | The frontend shows a message fetched from the backend, both deployed | **Built and verified locally (Sessions 4, 7). NOT deployed** |
 | 2 | Product list, price filter, cart (fake data) | Browse, filter, and add to cart work locally | **DONE (Session 9), verified live locally** |
-| 3 | Supabase tables with real products and model features | The product list loads from the database | Not started |
-| 4 | Backend routes for products and orders | Frontend reads products through the backend | Not started |
-| 5 | Checkout that saves orders, with delivery estimate | A guest order is saved with its items, cart clears | Not started |
+| 3 | Supabase tables with real products and model features | The product list loads from the database | **PARTLY DONE (Session 12).** Schema applied via the pooler, RLS on, **63 products seeded and verified**. `GET /products` still reads the CSV, so **the product list shows stale stock** — that switch is the remaining part |
+| 4 | Backend routes for products and orders | Frontend reads products through the backend | **PARTLY DONE (Session 12).** `POST /orders` and `GET /orders/:id` are real. Product routes still serve the CSV |
+| 5 | Checkout that saves orders, with delivery estimate | A guest order is saved with its items, cart clears | **DONE (Session 12), verified live.** Real orders in Supabase, stock decremented, both emails sent |
 | 6 | Google login and role system | Sign in works, `/admin` blocks non-admins | Not started |
 | 7 | Admin: products, stock, and feature fields | Admin can add, edit, and set stock for a phone | Not started |
 | 8 | Admin: orders and status updates | Admin can change an order's status | Not started |
-| 9 | Mailgun emails (customer and admin) | Customer gets an order email in under a minute | **Email module DONE (Session 11). Not yet triggered: there is no `POST /orders` route (Stage 5) to fire it from** |
+| 9 | Mailgun emails (customer and admin) | Customer gets an order email in under a minute | **DONE (Session 12), verified live.** Both emails fire from `POST /orders`; real Mailgun message IDs returned |
 | 10 | Questionnaire and results pages connected to the model through `POST /recommend`, with session logging and feedback | A shopper answers 5 questions, sees ranked phones with reasons in under 3 seconds, and can add one to the cart | **MOSTLY DONE (Session 10).** Real ranked results live locally. Session logging + feedback buttons still missing |
 | 11 | Admin model page, deployment checks, and real usability test | 2 of 3 real testers finish the flow from questionnaire to order unaided | Not started |
 
@@ -974,3 +984,69 @@ the DB) still needs the owner to run the SQL. Nothing deployed.
 3) Rotate both leaked secrets before any deployment.
 4) Deploy to Vercel + Netlify; model service to Render/Railway (D35, warm
    container, never serverless).
+
+### Session 12: 2026-10-01
+
+**Agent/model:** Cline
+**Goal of the session:** Stage 5 (checkout that saves orders). Stage 9's email
+module had been written in Session 11 but nothing called it, because
+`POST /orders` did not exist, so the email flow could not be proven end to end.
+**What was done:**
+- **Connected Supabase for real.** Found the Supabase **pooler on port 6543**
+  works from this machine (direct 5432 is blocked). Wrote
+  `backend/src/db/apply_schema.js`, which applies `schema.sql` over it, so the
+  owner no longer has to paste SQL into the dashboard. All tables created, RLS
+  enabled, 63 products seeded and IDs verified against `phones.csv`.
+- **Stage 5 DONE, verified with real orders.** `backend/src/orders.js` (346
+  lines) builds and saves orders; `POST /orders` and `GET /orders/:id` are
+  live. Built `/checkout` (guest checkout, no account needed, Nigerian state
+  picker so a misspelled state cannot become a failed delivery) and
+  `/order/[id]` confirmation.
+- **Three security decisions that are deliberate, not incidental:**
+  1. The client sends only `product_id` and `quantity`. Prices are re-read from
+     the database server-side, so a tampered cart cannot change what is charged.
+     VERIFIED by sending `price_ngn: 1` and a huge quantity: the real price won.
+  2. Stock is decremented **inside one database transaction**, so two shoppers
+     cannot both buy the last unit.
+  3. **An email failure does NOT roll back a real order.** Losing a paid order
+     because Mailgun was briefly down would be far worse than a late email.
+     The order is saved first; the email is attempted and logged after.
+- Fixed the "silent success" trap from Session 11: email outcomes are now
+  visible in the backend log (`order confirmation sent to ... <message-id>`),
+  and a sandbox-blocked recipient is logged with a reason instead of quietly
+  disappearing.
+- Rewrote `API_CONTRACT.md` (177 lines). It was describing Stage 1 only while 8
+  routes were actually built. Also added `GET /model/version`, which existed in
+  code but was missing from the contract.
+**Decisions made:** none new. D12 (guest checkout) and D16 (simulated payments)
+already covered this.
+**Problems or errors:**
+- **My own test payloads were wrong twice.** I hand-wrote `{"customer":{...}}`
+  and got `Please enter your email address.` The real shape is flat with
+  `full_name` and `address_line`. The validation was right and my test was
+  wrong — third time this session pattern has cost a cycle, so it is now a
+  standing note: read the handler's expected shape before curling it.
+- Found 54 `undefined` strings on the confirmation page and investigated before
+  reporting: **all are inside Next.js's internal RSC payload**, not visible
+  text. The rendered page shows the correct order reference and all three money
+  rows. No bug.
+- The confirmation page previously rendered an em-dash for every total, because
+  `POST /orders` returned `subtotal/total` while `GET /orders/:id` returned
+  differently named fields. Both now share one shape on purpose.
+**State at the end:** Stages 1, 2, 5, 9 DONE and Stage 10 mostly done, all
+verified live locally against the real Supabase project and the real Mailgun
+API. Stages 3 and 4 are partly done: the database is real, but **`GET /products`
+still reads `model/data/phones.csv`, so the product list shows stale stock.**
+Committed `2d7c3bb`. Personas 10/10, secret scan passes, all pages 200.
+**Next steps:**
+1) **Finish Stage 3 properly:** switch `GET /products` to read the `products`
+   table so stock shown in the shop matches stock that orders decrement.
+2) **Stage 6 (Google login + roles)** — then `/admin` and the admin routes.
+3) Stage 10's remaining gaps: `recommendation_sessions` logging and the
+   "Was this helpful?" feedback buttons (feature 11). Both need the database
+   and are now unblocked.
+4) Rotate the Supabase DB password and the Mailgun private key before any
+   deployment — both are in this chat's history.
+5) Deploy to Vercel + Netlify, model service to Render/Railway (D35, warm
+   container, never serverless). Confirm the D9 hosting split first (open
+   question 4).
