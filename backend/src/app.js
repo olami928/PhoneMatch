@@ -8,7 +8,8 @@ const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
-const { getCatalog } = require("./catalog");
+const products = require("./products");
+const auth = require("./auth");
 const orders = require("./orders");
 const email = require("./email");
 
@@ -65,6 +66,51 @@ app.use(
 
 app.use(express.json());
 
+// Resolves `req.user` and `req.profile` for EVERY request, when a valid token is
+// present. It never blocks a request: guest checkout is allowed (D12), so most
+// routes stay public and simply see `req.user === null`. Routes that do need an
+// identity use `requireUser` or `requireAdmin`, which read what is set here.
+//
+// Registered before the routes so every route below can rely on it.
+app.use(auth.attachUser);
+
+// --- Stage 6: who am I -------------------------------------------------------
+//
+// GET /auth/me tells the frontend whether someone is signed in and whether they
+// are an admin. The frontend uses it to show the right header, but it is NOT a
+// security gate: a caller could lie to their own browser and the only thing that
+// matters is that the admin ROUTES below check the role server-side.
+app.get("/auth/me", (req, res) => {
+  if (!req.user) {
+    // 200, not 401. "Not signed in" is a normal answer to this question, and a
+    // 401 would make every guest page look like an error to the frontend.
+    return res.json({ signed_in: false });
+  }
+  res.json({
+    signed_in: true,
+    email: req.user.email || null,
+    name:
+      req.profile?.full_name ||
+      (req.user.user_metadata && req.user.user_metadata.full_name) ||
+      null,
+    role: req.profile?.role || "customer",
+    user_id: req.user.id,
+  });
+});
+
+// A deliberately tiny admin route. It exists so the role gate can be TESTED
+// end to end without building the whole admin area first (Stage 7/8), and it is
+// the reference example every future admin route copies: `requireAdmin` runs
+// before any data is read, so a non-admin never reaches the database.
+app.get("/admin/ping", auth.requireAdmin, (req, res) => {
+  res.json({
+    status: "ok",
+    message: "You are signed in as an administrator.",
+    email: req.user.email || null,
+    role: req.profile.role,
+  });
+});
+
 // Stage 1 proof route. The frontend fetches this to show the two parts are
 // connected. Replace it with the real routes in later stages.
 app.get("/hello", (req, res) => {
@@ -87,17 +133,7 @@ app.get("/health", (req, res) => {
 // Filters are applied by the BACKEND rather than by sending everything and
 // letting the browser filter. That keeps the browser fast as the catalog grows
 // and means a filter can never be bypassed.
-app.get("/products", (req, res) => {
-  let products;
-  try {
-    products = getCatalog();
-  } catch (error) {
-    return res.status(500).json({
-      error: "The product catalog could not be loaded.",
-      detail: error.message,
-    });
-  }
-
+app.get("/products", async (req, res) => {
   const { min_price, max_price, brand, in_stock, search } = req.query;
 
   // A bad number is a client mistake, so say so instead of silently ignoring it.
@@ -112,49 +148,61 @@ app.get("/products", (req, res) => {
     return n;
   };
 
+  let result;
   try {
     const min = parseBound(min_price, "min_price");
     const max = parseBound(max_price, "max_price");
 
-    let rows = products.filter((p) => p.active);
-
-    if (min !== null) rows = rows.filter((p) => p.price_ngn >= min);
-    if (max !== null) rows = rows.filter((p) => p.price_ngn <= max);
-    if (brand) rows = rows.filter((p) => p.brand === brand);
-    if (in_stock === "true") rows = rows.filter((p) => p.stock > 0);
-    if (search) {
-      const q = String(search).toLowerCase();
-      rows = rows.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          String(p.processor || "").toLowerCase().includes(q)
-      );
-    }
-
-    // Cheapest first, so the product list has a predictable order.
-    rows = rows.slice().sort((a, b) => a.price_ngn - b.price_ngn);
-
-    // The full list of brands, so the filter UI never invents an option that
-    // would return nothing.
-    const brands = [...new Set(products.filter((p) => p.active).map((p) => p.brand))].sort();
-
-    res.json({ count: rows.length, total: products.length, brands, products: rows });
+    // Filters go to the DATABASE, not to a list fetched whole and filtered in
+    // memory. That keeps the browser fast as the catalog grows and means a
+    // filter can never be bypassed by editing the URL.
+    result = await products.listProducts({
+      min_price: min,
+      max_price: max,
+      brand: brand || undefined,
+      in_stock: in_stock === "true",
+      search: search || undefined,
+    });
   } catch (error) {
-    res.status(error.status || 400).json({ error: error.message });
+    // A bad query parameter is the CALLER's mistake and its message is already
+    // written to be shown as-is ("min_price must be a number of naira, got
+    // \"abc\""). It must not be buried inside a generic "could not be loaded",
+    // which tells the shopper nothing about what to fix. Anything else really is
+    // our fault and gets the generic message.
+    if (error.status === 400) {
+      return res.status(400).json({ error: error.message });
+    }
+    return res.status(500).json({
+      error: "The product list could not be loaded.",
+      detail: error.message,
+    });
   }
+
+  // `source` tells the operator whether prices came from the live database or
+  // the CSV fallback. The frontend does not need it, but it makes a degraded
+  // deploy visible in the response instead of only in the server log.
+  res.json({
+    count: result.products.length,
+    total: result.total,
+    brands: result.brands,
+    source: result.source,
+    products: result.products,
+  });
 });
 
 // One phone by id. 404 with a clear message, because the frontend links to
 // product pages directly and a wrong id should not look like a broken site.
-app.get("/products/:id", (req, res) => {
-  let products;
+app.get("/products/:id", async (req, res) => {
+  let product;
   try {
-    products = getCatalog();
+    product = await products.getProduct(req.params.id);
   } catch (error) {
-    return res.status(500).json({ error: "The product catalog could not be loaded." });
+    return res.status(500).json({
+      error: "The product could not be loaded.",
+      detail: error.message,
+    });
   }
 
-  const product = products.find((p) => p.product_id === req.params.id);
   if (!product) {
     return res.status(404).json({ error: `No phone with id "${req.params.id}".` });
   }
@@ -235,6 +283,25 @@ app.post("/recommend", async (req, res) => {
   }
 
   try {
+    // The model reads stock from phones.csv, which never changes when an order
+    // is placed. So the backend sends the ids the shop can actually sell RIGHT
+    // NOW, read from the `products` table. Without this the model would keep
+    // recommending a phone that just sold out.
+    //
+    // The ids can only ever REMOVE candidates. They are applied by intersecting
+    // with the catalog, never by adding to it, so a caller still cannot smuggle
+    // an out-of-stock or over-budget phone past the hard filters by naming it.
+    // See `apply_available_ids` in shop_recommender.py.
+    let sellableIds = null;
+    try {
+      sellableIds = await products.listSellableIds();
+    } catch (err) {
+      // Never fail a recommendation because the stock lookup had a problem. The
+      // model falls back to its own stock column, which is stale but never
+      // empty. This is logged rather than swallowed so it is not invisible.
+      console.error("could not read live stock, using the catalog's own:", err.message);
+    }
+
     const response = await fetch(`${MODEL_SERVICE_URL}/recommend`, {
       method: "POST",
       headers: {
@@ -244,7 +311,13 @@ app.post("/recommend", async (req, res) => {
           ? { "X-Model-Key": process.env.MODEL_SERVICE_KEY }
           : {}),
       },
-      body: JSON.stringify(answers),
+      // `available_ids` sits beside the answers, not inside them, so the answer
+      // keys stay exactly as the questionnaire produced them. Omitted entirely
+      // when unknown rather than sent as [] — an empty list would mean "nothing
+      // is sellable" and wipe out every recommendation.
+      body: JSON.stringify(
+        sellableIds ? { ...answers, available_ids: sellableIds } : answers
+      ),
       signal: AbortSignal.timeout(10000),
     });
 
@@ -317,6 +390,11 @@ app.post("/orders", async (req, res) => {
 
   let saved;
   try {
+    // Tie the order to the signed-in shopper when there is one, so it appears in
+    // their order history. `req.user.id` comes from the VERIFIED token set by
+    // attachUser — not from the request body — so nobody can file an order under
+    // another account. A guest simply gets null, which is allowed (D12).
+    order.user_id = req.user ? req.user.id : null;
     saved = await orders.saveOrder(order);
   } catch (err) {
     console.error("saveOrder failed:", err.message);

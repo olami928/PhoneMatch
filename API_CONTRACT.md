@@ -44,12 +44,17 @@ Response `200`:
 
 ---
 
-## Stage 2 and 5 routes (built)
+## Stage 3 and 6 routes (built)
 
 ### `GET /products`
 
-Public. Reads `model/data/phones.csv` via `src/catalog.js` — the same file the
-model scores, so the shop and the model can never show different phones.
+Public. Reads the **`products` table in Supabase**, so the stock shown in the shop
+is the same stock `POST /orders` decrements. It falls back to
+`model/data/phones.csv` only when Supabase is not configured, and the response
+says which source answered via `source` (`"database"` or `"csv"`).
+
+The CSV is still the source for the specs the **model** scores; the database is
+the source for **price and stock**. Both use the same `product_id`.
 
 Query parameters (all optional):
 
@@ -58,14 +63,58 @@ Query parameters (all optional):
 | `min_price` | inclusive lower bound in naira |
 | `max_price` | inclusive upper bound in naira |
 | `brand` | exact brand match |
+| `in_stock` | `true` to show only phones with stock |
+| `search` | matches name or processor, case-insensitive |
+
+A non-numeric price is a `400` with a message written to be shown to the shopper.
 
 ```json
-{ "count": 9, "products": [ { "product_id": "...", "name": "...", "price_ngn": 98100 } ] }
+{
+  "count": 9,
+  "total": 63,
+  "brands": ["Samsung", "TECNO", "Xiaomi"],
+  "source": "database",
+  "products": [{ "product_id": "...", "name": "...", "price_ngn": 98100, "stock": 0 }]
+}
 ```
 
 ### `GET /products/:id`
 
 Public. 404 when the id is unknown. Response: `{ "product": { ... } }`.
+
+### `GET /auth/me` (Stage 6)
+
+Public. Tells the frontend who is calling. Always `200` — "not signed in" is a
+normal answer, not an error.
+
+Request header (optional): `Authorization: Bearer <supabase access token>`
+
+```json
+{ "signed_in": false }
+```
+
+```json
+{ "signed_in": true, "email": "...", "name": "...", "role": "customer", "user_id": "..." }
+```
+
+The role comes from the `profiles` table, never from the request and never from
+the token's claims. A profile row is created on first sign-in with role
+`customer`; the first admin is promoted by hand in Supabase.
+
+### `GET /admin/ping` (Stage 6)
+
+Admin only. Reference example for every future admin route.
+
+| Case | Status |
+|---|---|
+| no token | `401` |
+| invalid or forged token | `401` |
+| valid token, role `customer` | `403` |
+| valid token, role `admin` | `200` |
+
+Tokens are verified with Supabase, so a hand-written JWT claiming
+`{"role":"admin"}` is rejected. **A token in the request body is ignored
+entirely** — identity comes only from the verified `Authorization` header.
 
 ### `GET /questionnaire`
 
@@ -92,8 +141,19 @@ returned:
 
 `brand_preference` may be omitted or `"No preference"`.
 
-Response: `{ "model_version": "rf-shop-0.1", "recommendations": [...], "message": "..." }`
-`message` is present only when the catalog is too thin to fill every slot.
+The backend also sends `available_ids`: the product ids the shop can sell right
+now (active, stock > 0), read from the `products` table. The model applies it as
+an **intersection**, so it can only ever remove candidates — the hard filters
+(budget, storage, stock, active) still run afterwards and keep the final say. This
+is what stops the model recommending a phone that just sold out, since the CSV's
+own `stock` column does not change when an order is placed. It is omitted
+entirely when the database is unreachable, so a misconfigured deploy degrades to
+stale stock rather than returning no recommendations at all.
+
+Response: `{ "model_version": "rf-shop-0.1", "recommendations": [...], "message": "...", "live_stock_applied": true }`
+
+- `message` is present only when the catalog is too thin to fill every slot.
+- `live_stock_applied` is `false` when live stock could not be applied.
 
 ---
 

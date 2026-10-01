@@ -10,8 +10,7 @@
 // after Stage 3 the database is the shop's source of truth for what a phone
 // costs and how many are left (D28).
 
-const { createClient } = require("@supabase/supabase-js");
-const { getCatalog } = require("./catalog");
+const { supabase, isConfigured } = require("./supabaseClient");
 
 // Delivery is a flat estimate, matching frontend/src/lib/format.js. AGENTS.md
 // requires the estimate to be visible in the cart; this constant is the server
@@ -19,38 +18,6 @@ const { getCatalog } = require("./catalog");
 // charged another.
 const DELIVERY_FEE = 5000;
 const FREE_DELIVERY_THRESHOLD = 500000;
-
-let client = null;
-
-// Created once and reused. A new client per request would re-read config every
-// time and is wasteful on a serverless function that is billed per invocation.
-function supabase() {
-  if (client) return client;
-  const url = process.env.SUPABASE_URL;
-  // Supabase renamed these keys in 2025: the old `anon` / `service_role` are now
-  // `publishable` / `secret`. Accept both so this works whichever the project was
-  // created with. Only the SECRET key belongs here — it bypasses row level
-  // security, so it must never reach the frontend.
-  const key =
-    process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error(
-      "Supabase is not configured. Set SUPABASE_URL and SUPABASE_SECRET_KEY " +
-        "(or SUPABASE_SERVICE_ROLE_KEY on an older project)."
-    );
-  }
-  client = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  return client;
-}
-
-function isConfigured() {
-  return Boolean(
-    process.env.SUPABASE_URL &&
-      (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
-  );
-}
 
 /**
  * Turns the raw request into a validated order, or throws an Error with a
@@ -197,6 +164,11 @@ async function saveOrder(order) {
     .insert({
       email: order.email,
       full_name: order.full_name,
+      // Null for a guest, which is allowed (D12). When someone IS signed in we
+      // store their id so `GET /orders/mine` can find the order later. The id
+      // comes from the verified token (req.user), never from the request body,
+      // so an order cannot be filed under somebody else's account.
+      user_id: order.user_id || null,
       phone: order.phone,
       address_line: order.address_line,
       city: order.city,
@@ -289,11 +261,33 @@ async function getOrder(id) {
     .eq("order_id", id);
   if (itemsError) throw new Error(`Could not read the order items: ${itemsError.message}`);
 
+  // Join the names back on so the confirmation page does not show a bare id.
+  //
+  // Read in ONE query for all the lines, not one lookup per line, and from the
+  // DATABASE rather than the catalog CSV. The CSV is a build-time snapshot: if
+  // admin renames a phone at Stage 7, the order confirmation must show the new
+  // name, and the old code would still print the CSV's version.
+  const productIds = [...new Set((items || []).map((i) => i.product_id))];
+  const names = new Map();
+  if (productIds.length) {
+    const { data: named, error: nameError } = await db
+      .from("products")
+      .select("id, name")
+      .in("id", productIds);
+    if (nameError) {
+      // A missing name is a cosmetic problem. The id still identifies the line,
+      // so the order is shown rather than failing to load.
+      console.error(`could not read product names for order ${id}:`, nameError.message);
+    }
+    for (const row of named || []) names.set(row.id, row.name);
+  }
+
   const orderItems = (items || []).map((item) => ({
     ...item,
     price_ngn: Number(item.price_ngn),
-    // Join the name back on so the confirmation page does not show a bare id.
-    name: getCatalog().find((p) => p.product_id === item.product_id)?.name || item.product_id,
+    // Price stays the one stored at purchase time, never the current price.
+    // The shopper agreed to that number and it must not change afterwards.
+    name: names.get(item.product_id) || item.product_id,
   }));
 
   const subtotal = orderItems.reduce(
