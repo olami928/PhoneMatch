@@ -908,3 +908,18 @@ Rule: finish and confirm one phase before starting the next, except that the mod
 3) **Remaining Stage 10 gaps:** `recommendation_sessions` logging and the "Was this helpful?" feedback buttons (feature 11). Both need the database, so they belong with Stage 3.
 4) M5 remains blocked on real labeled data; M6 needs 20+ personas.
 
+
+**Session 10b fix — the questionnaire dead end (found by the owner, not by me).**
+The owner reported an error on the last question. Root cause was one line in
+`frontend/src/components/Questionnaire.jsx`: the action button was rendered as
+`{!isLast && !selected && ...}`, so on the LAST question it could NEVER appear.
+On questions 1-4 picking an option auto-advances, so the missing button was
+invisible. On question 5 (brand) there is nowhere to advance to, so selecting a
+brand did nothing and the only way out was "Skip", which DELETED the answer just
+given. Replaced with an explicit `showAction` variable: `!selected` on questions
+1-4, `selected` on the last. The last button now reads "See my phones".
+Verified by replicating the component's state machine in Node and walking both
+paths (pick a brand / skip the brand) — both now reach /results with the brand
+answer correctly kept or correctly absent. 10/10 personas still pass.
+Lesson recorded: this is the second bug that only a human clicking the real UI
+could find, and the third that a build passing did NOT mean the flow worked.

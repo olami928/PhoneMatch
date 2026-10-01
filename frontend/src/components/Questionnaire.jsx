@@ -37,6 +37,14 @@ export default function Questionnaire({ questions }) {
   const isLast = step === total - 1;
   const selected = answers[question.id];
 
+  // Whether the main action button is shown.
+  //  - Not the last question, nothing chosen yet  -> "Next" (lets a shopper
+  //    who wants to read the options move on without picking).
+  //  - Last question, something chosen            -> "See my phones", the only
+  //    way to finish. Skipping the brand would also finish, but it discards
+  //    the choice, so it must not be the only way out.
+  const showAction = isLast ? Boolean(selected) : !selected;
+
   function choose(option) {
     const next = { ...answers, [question.id]: option.label };
     setAnswers(next);
@@ -153,13 +161,20 @@ export default function Questionnaire({ questions }) {
           {step === 0 ? "Cancel" : "Back"}
         </button>
 
-        {/* Next is only needed when nothing is picked yet, or after using Skip. */}
-        {!isLast && !selected && (
+        {/* On every question except the last, choosing an option moves on by
+            itself, so Next is only needed when nothing is picked yet.
+
+            On the LAST question the opposite is true: there is nowhere to
+            advance to, so an explicit button is the only way to finish. It must
+            therefore show whenever the question is answered. Without this the
+            shopper picks a brand, nothing happens, and the only way out is
+            "Skip", which throws the answer away. */}
+        {showAction && (
           <button
             onClick={next}
             className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-700"
           >
-            Next
+            {isLast ? "See my phones" : "Next"}
           </button>
         )}
 
