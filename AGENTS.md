@@ -668,8 +668,8 @@ Do the stages in order. Do not start a stage until the one before it is marked D
 | 4 | Backend routes for products and orders | Frontend reads products through the backend | **DONE (Session 13).** Both product routes now read the database |
 | 5 | Checkout that saves orders, with delivery estimate | A guest order is saved with its items, cart clears | **DONE (Session 12), verified live.** Real orders in Supabase, stock decremented, both emails sent |
 | 6 | Google login and role system | Sign in works, `/admin` blocks non-admins | **CODE DONE (Session 13), BLOCKED on the owner.** `backend/src/auth.js` verifies tokens and gates admin routes; `/signin` and `/auth/callback` pages exist. **Cannot work until Google is enabled in Supabase and redirect URLs are added** |
-| 7 | Admin: products, stock, and feature fields | Admin can add, edit, and set stock for a phone | Not started |
-| 8 | Admin: orders and status updates | Admin can change an order's status | Not started |
+| 7 | Admin: products, stock, and feature fields | Admin can add, edit, and set stock for a phone | **CODE DONE (Session 14), needs an admin account to use.** `backend/src/admin.js` + `/admin/products` with create, edit, stock and full spec fields. Feature 26 warns about missing model features without blocking |
+| 8 | Admin: orders and status updates | Admin can change an order's status | Not started. **Next** |
 | 9 | Mailgun emails (customer and admin) | Customer gets an order email in under a minute | **DONE (Session 12), verified live.** Both emails fire from `POST /orders`; real Mailgun message IDs returned |
 | 10 | Questionnaire and results pages connected to the model through `POST /recommend`, with session logging and feedback | A shopper answers 5 questions, sees ranked phones with reasons in under 3 seconds, and can add one to the cart | **MOSTLY DONE (Session 10).** Real ranked results live locally. Session logging + feedback buttons still missing |
 | 11 | Admin model page, deployment checks, and real usability test | 2 of 3 real testers finish the flow from questionnaire to order unaided | Not started |
@@ -1216,3 +1216,71 @@ passes; personas still 10/10. Committed `0c124a8`. Nothing pushed or deployed.
 3. **OWNER:** set `profiles.role = 'admin'` for the first admin.
 4. Stage 7 (admin products) and Stage 8 (admin orders) are unblocked.
 5. Push to GitHub, then deploy.
+
+### Session 14: 2026-10-01
+
+**Agent/model:** Cline
+**Goal of the session:** The owner said "continue" after the SMTP walkthrough. The
+SMTP task needs a real sending domain and is the owner's, so the agent picked the
+highest-value work that needs nothing from them: **Stage 7, admin products and
+stock**, which had been unblocked since the role gate landed in Session 13.
+**What was done:**
+
+- **Stage 7 code DONE.** `backend/src/admin.js` + routes on
+  `GET/POST /admin/products` and `PUT /admin/products/:id`, all behind
+  `requireAdmin`. Frontend `/admin` and `/admin/products`, with create, edit,
+  stock, active toggle and all nine model spec fields.
+- **The product id is DERIVED, never accepted from the request.** This was the
+  subtle part: `products.id` is the same id the model returns in a
+  recommendation (D36). A product the shop invented an id for could never be
+  recommended, and if the two ids disagreed the shopper could not buy what the
+  model suggested.
+- **Feature 26 implemented as a WARNING, not a block.** Each product carries
+  `missing_model_features`; the UI shows "Missing specs: ...". An admin adding a
+  phone before the model knows it is a normal situation, not a mistake to punish.
+- **Stock defaults to 0 on create, deliberately NOT 10.** A phone nobody has
+  counted must not go on sale because someone typed a name into a form.
+- **The one destructive edit asks for a second click.** Going from for-sale to
+  stock 0 takes a phone off sale AND out of the model's candidates, so the form
+  warns and waits. Going 0 to 0 does not re-warn, because warning every time
+  would train the admin to click through it without reading.
+
+**Decisions made:** no new decision. D36 (database owns price and stock) and the
+Stage 7 row in section 13 already governed this work.
+**Problems or errors:**
+
+- **The chunked-write seam problem happened AGAIN, in `admin.js`.** Writing it in
+  two chunks left `module.exports` stranded mid-file, split the body of
+  `missingModelFeatures`, and left orphan lines at the end. Caught by
+  `node --check` plus noticing `admin exports:` printed EMPTY. Now checking
+  `require()` output, not just syntax, before moving on.
+- **Two real bugs the tests caught, not the build:**
+  1. `createProduct({brand:'X', price_ngn:100})` with NO `name` key reached the
+     database and failed on a not-null constraint. Cause: required-field checks
+     lived INSIDE the loop over writable keys, so a body that simply omitted
+     `name` never visited it. Moved the checks AFTER the loop.
+  2. `createProduct` had no id at all, and `products.id` has no database default
+     (it is the model's id). Added `nextAvailableId()` with the same `+` to
+     `plus` rule the M3 builder uses.
+- **My own test harness lied to me first.** The validation cases all printed
+  "FAIL, was accepted" because I called an ASYNC function in a try/catch without
+  `await`, so every rejection escaped as an unhandled promise. The validation was
+  correct; the test was wrong. Re-run with `await`, all 7 cases pass.
+- **A `sed` over-corrected an import path.** Fixing `../../lib/api` to
+  `../../../lib/api` also rewrote `/admin/page.jsx`, which is only ONE level below
+  `app/` and needs `../../`. The build caught it.
+- **I overwrote `fetchQuestionnaire` in `api.js`** when inserting the admin
+  functions, and briefly added a self-import. Both fixed before the build.
+**State at the end:** Stages 1, 2, 3, 4, 5, 7, 9 done. Stage 6 code complete for
+Google and email. Committed `2f4ee9d`. Personas 10/10, `next build` passes with
+17 routes, secret scan passes. Verified live: 401 on all four admin routes with no
+token, 401 for a forged `role:admin` JWT, 200 for public shop routes, and a real
+create/update/delete cycle against Supabase ending back at 63 products.
+**Next steps:**
+1. **OWNER: promote the first admin** — sign in, then set `profiles.role =
+   'admin'`. Until then `/admin` correctly refuses everyone, so the owner cannot
+   see his own admin page.
+2. **OWNER: Stage 8 (admin orders) is next**, now fully unblocked.
+3. **OWNER: Google provider** and **a real SMTP provider** (Resend recommended;
+   Mailgun's current domain is a sandbox and cannot do SMTP).
+4. Rotate the Supabase DB password and the Mailgun private key before deploying.
