@@ -138,6 +138,44 @@ def _why(row, bounds, customer, filters) -> list:
     return lines[:3] or ["A well-rounded phone within your budget"]
 
 
+def apply_available_ids(
+    df: pd.DataFrame, available_ids: list[str] | None
+) -> pd.DataFrame:
+    """Restrict the catalog to the ids the shop can sell right now.
+
+    WHY THIS EXISTS (Stage 3): the shop's real stock lives in its `products`
+    table and changes every time an order is placed. The CSV's `stock` column was
+    written once at build time, so once the shop is live the model would keep
+    recommending a phone that had already sold out. The backend therefore sends
+    the currently sellable ids and this applies them.
+
+    SECURITY — THE WHOLE POINT OF HOW THIS IS WRITTEN: this is an INTERSECTION
+    with the catalog, never an addition to it. An id that is not already in
+    phones.csv cannot be introduced by this call, so a caller cannot smuggle in a
+    phone that is not in our catalog. And because the hard filters in
+    `recommend()` still run afterwards, naming an in-catalog but over-budget,
+    under-stored, out-of-stock or inactive phone does not get it recommended
+    either. The caller's list can only ever take options AWAY.
+
+    `None` means the caller does not know current stock (e.g. the database is
+    not configured), so the catalog is returned untouched and the CSV's own stock
+    column is used. An empty list is honoured as "nothing is sellable" and
+    returns no rows: the backend deliberately omits the field rather than sending
+    an empty list, so a misconfigured deploy degrades to stale stock instead of
+    wiping out every recommendation.
+    """
+    if available_ids is None:
+        return df
+
+    allowed = {str(pid) for pid in available_ids}
+    if not allowed:
+        return df.iloc[0:0]  # an empty frame, not the whole catalog
+
+    # `isin` on a column of the existing frame is the intersection. No row is
+    # created here, only rows dropped.
+    return df[df["product_id"].isin(allowed)]
+
+
 def recommend(answers: dict, df: pd.DataFrame | None = None, n: int = 5) -> dict:
     """Answer the questionnaire, return ranked picks with reasons and ratings.
 

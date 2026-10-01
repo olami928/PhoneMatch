@@ -42,7 +42,9 @@ for path in (os.path.join(MODEL_DIR, "src"), os.path.join(MODEL_DIR, "legacy", "
 from fastapi import FastAPI, HTTPException  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
 
-from shop_recommender import MODEL_VERSION, load_phones, recommend  # noqa: E402
+from shop_recommender import (  # noqa: E402
+    MODEL_VERSION, apply_available_ids, load_phones, recommend,
+)
 
 app = FastAPI(
     title="PhoneMatch model service",
@@ -81,6 +83,24 @@ class RecommendRequest(BaseModel):
     storage: str = Field(..., description="Storage label")
     brand_preference: str | None = Field(None, description="Optional brand, or null")
 
+    # The product ids the shop can sell right now (active, stock > 0), read by the
+    # backend from its `products` table. Added in Stage 3: the catalog CSV's stock
+    # column is set at build time and never changes when an order is placed, so
+    # without this the model would keep recommending a sold-out phone.
+    #
+    # This is a RESTRICTION, never an expansion. `apply_available_ids` intersects
+    # it with the catalog, so naming a phone that is out of stock, inactive or
+    # over budget cannot get it recommended — the hard filters still run after
+    # this and still have the final say.
+    #
+    # `None` means "the caller does not know" and the catalog's own stock column
+    # is used. An empty list means "nothing is sellable" and returns no picks,
+    # which is why the backend omits the field entirely rather than sending [].
+    available_ids: list[str] | None = Field(
+        None,
+        description="Product ids currently sellable. Restricts, never expands, the candidates.",
+    )
+
 
 @app.get("/health")
 def health() -> dict[str, Any]:
@@ -106,10 +126,11 @@ def version() -> dict[str, Any]:
 def post_recommend(req: RecommendRequest, top_n: int = 5) -> dict[str, Any]:
     """Rank phones for one shopper.
 
-    `candidate_ids` is deliberately NOT accepted: the shop sends answers, and the
-    hard filters inside `recommend()` decide which phones may be considered. The
-    service trusts the catalog, not the caller, so a caller cannot smuggle an
-    out-of-stock or over-budget phone past the filters by naming it.
+    `available_ids` is optional and only ever REMOVES candidates (see
+    RecommendRequest). The service trusts the catalog for everything else: the
+    hard filters inside `recommend()` decide budget, storage, stock and active,
+    and they run after this restriction, so a caller cannot smuggle an
+    out-of-stock or over-budget phone past them by naming it.
     """
     started = time.perf_counter()
     try:
@@ -125,10 +146,19 @@ def post_recommend(req: RecommendRequest, top_n: int = 5) -> dict[str, Any]:
         "brand_preference": req.brand_preference,
     }
     try:
-        result = recommend(answers, df=catalog, n=max(1, min(top_n, 10)))
+        # A failure here must NOT fail the recommendation. The catalog's own
+        # stock column is stale but always non-empty, so falling back to it
+        # degrades gracefully; returning an error would take the results page
+        # down entirely because of an optional extra signal.
+        sellable = apply_available_ids(catalog, req.available_ids)
+        result = recommend(answers, df=sellable, n=max(1, min(top_n, 10)))
     except Exception as exc:
         # Bad input must be a clear 400, not a 500 that looks like a server fault.
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     result["elapsed_ms"] = round((time.perf_counter() - started) * 1000, 1)
+    # Whether the shop's live stock was actually applied. The backend logs a
+    # warning when this is False, so a broken restriction is visible rather than
+    # silently showing stale picks.
+    result["live_stock_applied"] = req.available_ids is not None
     return result
