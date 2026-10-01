@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "../scripts/check-for-secrets.sh",
     "build": "next build",
+    "postbuild": "../scripts/check-for-secrets.sh",
     "start": "next start",
     "lint": "eslint"
   },
