@@ -14,11 +14,17 @@ const { getCatalog } = require("../catalog");
 // CommonJS, like the rest of the backend (package.json has no "type": "module").
 async function main() {
   const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Supabase renamed these keys. The secret key is the new name for what used to
+  // be called service_role; the publishable key is the new name for anon. We
+  // accept both spellings so this works on an older project too.
+  const serviceKey =
+    process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const publishableKey =
+    process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
 
   if (!url || !serviceKey) {
     console.error(
-      "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in backend/.env.\n" +
+      "Missing SUPABASE_URL or the secret key in backend/.env.\n" +
         "Find them in Supabase -> Project Settings -> API.\n" +
         "The service_role key bypasses row level security. Never put it in\n" +
         "frontend code, never commit it, never paste it into chat."

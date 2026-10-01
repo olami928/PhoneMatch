@@ -1,36 +1,41 @@
 # Stage 3 setup: connect the shop to Supabase
 
-You need to do three things. They take about 10 minutes total.
+**Status: step 1 is all that is left.** The keys are already in `backend/.env`
+(done). Only the SQL below still needs you.
 
-## 1. Run the schema (creates the tables)
+## 1. Run the schema (the only step left)
 
 1. Open https://supabase.com/dashboard/project/iwcxwxoiqzwncmvfdrzd/sql/new
-2. Paste the whole of `backend/src/db/schema.sql` and click **Run**
-3. Repeat with `backend/src/db/row_level_security.sql`
+2. Open `backend/src/db/RUN_THIS_IN_SUPABASE.sql`, copy **everything**, paste it
+   into that editor, click **Run**.
 
-Both files are written to be safe to run more than once (every statement is
-`if not exists` / `drop policy if exists`), so a mistake does not destroy data.
+That single file contains both the tables and the row-level security rules, so
+there is nothing to run afterwards.
+
+The script is safe to run more than once (every statement is `if not exists` /
+`drop policy if exists`), so a mistake will not destroy data.
 
 You should see `products`, `profiles`, `orders`, `order_items`,
 `order_status_history` and `recommendation_sessions` in the Tables list.
 
-## 2. Add the two API keys
+> Why you run this and not me: this machine cannot reach the Postgres port, and
+> the Supabase Management API needs a personal access token, so there is no way
+> for me to create the tables. Everything after this point I can do.
 
-Both are on the same page: **Project Settings -> API** (or the "API Keys" section
-in the new dashboard layout).
+## 2. Keys — DONE, no action needed
 
-- `anon` public key: goes in the frontend, it is designed to be visible
-- `service_role` key: goes in the BACKEND ONLY. It bypasses row level security,
-  so anyone holding it can read every customer's order. Never put it in frontend
-  code, never commit it, never paste it into a chat.
+They are already saved in `backend/.env` (git-ignored, `600` permissions) and I
+confirmed neither key appears in any tracked file.
 
-Edit `backend/.env` and fill in the two blank lines. The URL and password are
-already there. Do not delete that file, and do not commit it (it is already
-git-ignored).
+Note that Supabase renamed these. `sb_publishable_...` is the old `anon` key and
+is designed to be visible in the browser. `sb_secret_...` is the old
+`service_role` key: it bypasses row level security entirely, so anyone holding it
+can read every order and customer address. It stays in the backend, and it must
+be rotated (see the last section) because it was pasted into a chat.
 
 ## 3. Load the 63 phones
 
-From the `backend/` folder:
+I run this for you. From the `backend/` folder:
 
 ```bash
 npm run seed
@@ -49,11 +54,18 @@ all product ids present, model and shop agree
 That last line is the important one: it is the check that the model can never
 recommend a phone the shop cannot buy.
 
-## Rotating the database password
+## 4. Rotating the secret key — do this after we finish testing
 
-The password was shared in a chat message, so treat it as exposed. Supabase ->
-Project Settings -> Database -> reset password. Then update
-`SUPABASE_DB_PASSWORD` and `DATABASE_URL` in `backend/.env`.
+The secret key and the database password were both pasted into a chat, so treat
+both as exposed. Rotate them once the site works, then update `backend/.env`:
+
+- Secret key: Supabase -> Project Settings -> API Keys -> reveal -> regenerate
+- Database password: Supabase -> Project Settings -> Database -> reset password
+  (then update both `SUPABASE_DB_PASSWORD` and `DATABASE_URL`)
+
+After rotating, **never paste the new one into a chat.** Write it straight into
+`backend/.env` and tell me only that you did. I can read the file without you
+ever showing me the value.
 
 ## The first admin
 
