@@ -9,6 +9,8 @@ const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
 const { getCatalog } = require("./catalog");
+const orders = require("./orders");
+const email = require("./email");
 
 // The frozen questionnaire config. Read once and cached, because it does not
 // change while the server runs, and re-reading a file on every request would be
@@ -277,6 +279,116 @@ app.get("/model/version", async (req, res) => {
     res.json(await response.json());
   } catch {
     res.status(502).json({ error: "Model service unavailable." });
+  }
+});
+
+// =========================================================== orders (Stage 5)
+//
+// POST /orders is the checkout. Guest checkout is allowed (D12), so there is no
+// user id here yet; Stage 6 adds it once Google sign-in exists.
+//
+// The route is deliberately thin. All the rules (what is valid, what a phone
+// costs, whether there is stock) live in orders.js, so they can be tested
+// without going through HTTP, and so there is exactly one implementation.
+app.post("/orders", async (req, res) => {
+  if (!orders.isConfigured()) {
+    // Say what is wrong instead of returning a generic 500. This is the single
+    // most likely cause of a failed checkout during setup.
+    return res.status(503).json({
+      error:
+        "Checkout is not available yet: the shop database is not configured.",
+    });
+  }
+
+  let order;
+  try {
+    order = await orders.buildOrder(req.body);
+  } catch (err) {
+    if (err instanceof orders.ValidationError) {
+      // 400: the shopper needs to change something. The message is written to be
+      // shown to them as-is.
+      return res.status(400).json({ error: err.message });
+    }
+    console.error("buildOrder failed:", err.message);
+    return res.status(500).json({
+      error: "We could not read the cart. Please try again.",
+    });
+  }
+
+  let saved;
+  try {
+    saved = await orders.saveOrder(order);
+  } catch (err) {
+    console.error("saveOrder failed:", err.message);
+    return res.status(500).json({
+      error: "We could not save your order. Nothing has been charged.",
+    });
+  }
+
+  // Emails are sent AFTER the order is safely stored, and a failure to send is
+  // logged but never fails the order. Losing a real order because an email
+  // server was briefly down would be far worse than a delayed receipt.
+  //
+  // Each result is logged explicitly. `send()` resolves with { sent: false }
+  // instead of throwing when it skips a message, so without this a blocked or
+  // unconfigured email looks exactly like a delivered one in the log.
+  const emailPayload = { order: { ...order, id: saved.id }, items: order.items };
+  const reportEmail = (label, result) => {
+    if (result && result.sent) {
+      console.log(`  ${label} sent to ${result.to} (${result.id})`);
+    } else {
+      console.warn(`  ${label} NOT sent to ${(result && result.to) || "unknown"}: ${
+        (result && result.reason) || "unknown reason"
+      }`);
+    }
+  };
+
+  email
+    .send(email.orderConfirmationEmail(emailPayload))
+    .then((r) => reportEmail("order confirmation", r))
+    .catch((e) => console.error("confirmation email failed:", e.message));
+  email
+    .send(email.newOrderAlertEmail(emailPayload))
+    .then((r) => reportEmail("admin new-order alert", r))
+    .catch((e) => console.error("admin alert email failed:", e.message));
+
+  res.status(201).json({
+    order_id: saved.id,
+    status: saved.status,
+    created_at: saved.created_at,
+    email: order.email,
+    full_name: order.full_name,
+    items: order.items,
+    subtotal: order.subtotal,
+    delivery: order.delivery,
+    total: order.total,
+    // If stock moved under us the shopper must be told, not left to discover it
+    // when the parcel does not arrive.
+    oversold: saved.oversold,
+  });
+});
+
+// GET /orders/:id powers the confirmation page.
+//
+// This deliberately returns the order to anyone holding its id and does NOT
+// require sign-in. It exposes only what the buyer already supplied (their own
+// name, address and email) and is reachable by guessable-looking uuid, so it is
+// no more revealing than the order confirmation email itself. When Stage 6 adds
+// accounts, this route is where the owner check goes: a signed-in shopper should
+// only see their own orders, and guests should get a token in the URL.
+app.get("/orders/:id", async (req, res) => {
+  if (!orders.isConfigured()) {
+    return res.status(503).json({ error: "The shop database is not configured." });
+  }
+  try {
+    const order = await orders.getOrder(req.params.id);
+    if (!order) {
+      return res.status(404).json({ error: "We could not find that order." });
+    }
+    res.json({ order });
+  } catch (err) {
+    console.error("getOrder failed:", err.message);
+    res.status(500).json({ error: "We could not load that order." });
   }
 });
 

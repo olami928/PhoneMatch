@@ -116,5 +116,52 @@ create table if not exists public.recommendation_sessions (
   created_at        timestamptz not null default now()
 );
 
-create index if not sessions_model_version_idx on public.recommendation_sessions (model_version);
-create index if not sessions_created_idx on public.recommendation_sessions (created_at);
+create index if not exists sessions_model_version_idx on public.recommendation_sessions (model_version);
+create index if not exists sessions_created_idx on public.recommendation_sessions (created_at);
+
+-- ------------------------------------------------------------------ stock
+-- Deducting stock has to be atomic. If the backend read the stock, worked out
+-- stock - 1, then wrote it back, two shoppers checking out the last phone at
+-- the same moment would both succeed and stock would go to -1.
+--
+-- A Postgres function does the read and the write in one statement, so the
+-- database itself refuses to oversell. It returns the remaining stock, or -1
+-- if there was not enough, which the backend turns into a clear message.
+create or replace function public.decrement_stock(
+  p_product_id text,
+  p_quantity   integer
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  remaining integer;
+begin
+  if p_quantity is null or p_quantity < 1 then
+    return -1;
+  end if;
+
+  update public.products
+     set stock = stock - p_quantity
+   where id = p_product_id
+     and stock >= p_quantity
+  returning stock into remaining;
+
+  -- No row updated means the product is gone, inactive-by-stock, or the
+  -- quantity was not available. Either way the caller must not proceed.
+  if remaining is null then
+    return -1;
+  end if;
+
+  return remaining;
+end;
+$$;
+
+-- Only the backend's service_role key may call this. Without the revoke, any
+-- browser holding the public anon key could drain our stock by calling it.
+revoke execute on function public.decrement_stock(text, integer) from public;
+revoke execute on function public.decrement_stock(text, integer) from anon;
+revoke execute on function public.decrement_stock(text, integer) from authenticated;
+grant execute on function public.decrement_stock(text, integer) to service_role;

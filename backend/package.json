@@ -16,6 +16,7 @@
     "express": "^4.19.2",
     "form-data": "^4.0.1",
     "mailgun.js": "^11.1.0",
+    "pg": "^8.23.1",
     "serverless-http": "^3.2.0"
   }
 }

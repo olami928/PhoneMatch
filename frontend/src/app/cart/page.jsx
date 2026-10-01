@@ -141,13 +141,12 @@ export default function CartPage() {
                 </p>
               )}
 
-              <button
-                disabled
-                title="Checkout arrives at Stage 5, when the database is connected."
-                className="mt-4 w-full cursor-not-allowed rounded-lg bg-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-500"
+              <Link
+                href="/checkout"
+                className="mt-4 block w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-zinc-700"
               >
-                Checkout (coming at Stage 5)
-              </button>
+                Checkout
+              </Link>
 
               <Link
                 href="/phones"

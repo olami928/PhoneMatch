@@ -14,9 +14,18 @@ app.listen(port, () => {
   console.log(`Backend listening on http://localhost:${port}`);
   console.log(`Try: http://localhost:${port}/hello`);
   const mailgun = Boolean(process.env.MAILGUN_API_KEY);
-  const supabase = Boolean(process.env.SUPABASE_URL);
+  // Check the KEY too, not just the URL. Checking only the URL printed
+  // "configured: true" while the secret key was missing under its new name,
+  // which made a broken checkout look like an unfinished feature.
+  const supabase = Boolean(
+    process.env.SUPABASE_URL &&
+      (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
+  );
   console.log(`  Supabase configured: ${supabase}`);
   console.log(`  Mailgun configured:  ${mailgun}`);
+  if (!supabase) {
+    console.log("  (checkout is disabled: set SUPABASE_URL and SUPABASE_SECRET_KEY)");
+  }
   if (!mailgun) {
     console.log("  (emails will be skipped and recorded, not sent)");
   }
