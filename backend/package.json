@@ -1,0 +1,16 @@
+{
+  "name": "phone-shop-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Phone shop backend API (Express, runs locally and as a Netlify Function)",
+  "main": "src/app.js",
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "serverless-http": "^3.2.0"
+  }
+}

@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Environment files (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel
+
+# Large regeneratable model artifact (42MB) - rebuild with model/legacy/src/train_model.py
+*.joblib
+
+# Python bytecode (regenerated on every run, never useful in the repo)
+__pycache__/
+*.py[cod]
+
+# Python virtualenvs
+.venv/
+venv/
+env/

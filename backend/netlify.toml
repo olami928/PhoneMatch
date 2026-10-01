@@ -1,0 +1,13 @@
+# Netlify configuration for the backend API.
+#
+# The frontend is hosted on Vercel and calls this backend at /api/*.
+# This redirect sends every /api/... request to the Express app.
+
+[build]
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true

@@ -1,0 +1,72 @@
+brand,model,price_ngn,condition,ram_gb,storage_gb,battery_mah,main_camera_mp,selfie_camera_mp,processor,five_g,refresh_rate_hz,display_inches,release_year,price_verified_date,price_source
+TECNO,Camon 50 4G,340500.0,new,8.0,256.0,6150.0,50.0,32.0,MediaTek Helio G200 Ultimate,No,144.0,6.78,2026,2026-09-22,mobility.com.ng
+TECNO,Camon 50 Pro 4G,370000.0,new,8.0,256.0,6150.0,50.0,32.0,MediaTek Helio G200 Ultimate,No,144.0,6.78,2026,2026-09-22,mobility.com.ng
+TECNO,Spark 50 4G,190000.0,new,4.0,128.0,6700.0,50.0,8.0,MediaTek Helio G81,No,120.0,6.78,2026,2026-09-22,mobility.com.ng / smartprix.com
+TECNO,Spark Slim,355000.0,new,8.0,128.0,5160.0,50.0,13.0,MediaTek Dimensity 6300,No,,,2025,2026-09-22,gsmarena.com / smartprix.com
+TECNO,Spark 40 Pro+,273300.0,new,8.0,256.0,5200.0,50.0,13.0,MediaTek Helio G200,No,144.0,6.78,2025,2026-09-22,telset.id / startech.com.bd
+TECNO,Spark 40 Pro,232350.0,new,8.0,128.0,5000.0,50.0,13.0,MediaTek Helio G100,No,120.0,,2025,2026-09-22,telset.id / startech.com.bd
+TECNO,Spark 40,143000.0,new,4.0,128.0,5000.0,50.0,8.0,MediaTek Helio G81,No,120.0,,2025,2026-09-22,smartprix.com
+TECNO,Spark 40C,120500.0,new,4.0,128.0,5000.0,50.0,8.0,MediaTek Helio G85,No,90.0,6.6,2025,2026-09-22,mobility.com.ng / slot.ng
+TECNO,Camon 40 Premier,695000.0,new,12.0,256.0,5100.0,50.0,50.0,MediaTek Dimensity 8350,Yes,120.0,6.67,2025,2026-09-22,gsmarena.com / slot.ng
+TECNO,Camon 40 Pro 5G,400000.0,new,8.0,256.0,5200.0,50.0,50.0,MediaTek Dimensity 7300,Yes,144.0,6.78,2025,2026-09-22,gsmarena.com / telset.id
+TECNO,Camon 40 Pro,370000.0,new,8.0,256.0,5200.0,50.0,50.0,MediaTek Helio G100,No,120.0,6.78,2025,2026-09-22,gsmarena.com
+TECNO,Camon 40,286000.0,new,8.0,128.0,5200.0,50.0,32.0,MediaTek Helio G100,No,120.0,6.78,2025,2026-09-22,gsmarena.com
+TECNO,Phantom V Fold 2 5G,1673800.0,new,12.0,512.0,5750.0,50.0,32.0,MediaTek Dimensity 9000+,Yes,120.0,7.85,2025,2026-09-22,mobility.com.ng
+TECNO,Phantom V Flip 2 5G,979800.0,new,8.0,256.0,4720.0,50.0,32.0,MediaTek Dimensity 8020,Yes,120.0,6.9,2025,2026-09-22,smartprix.com
+TECNO,Pop 10 Pro,127900.0,new,4.0,128.0,6000.0,13.0,8.0,MediaTek Helio G81,No,90.0,6.6,2025,2026-09-22,mobility.com.ng
+TECNO,Pop 10,116000.0,new,3.0,64.0,5000.0,13.0,8.0,Unisoc T7250,No,120.0,6.67,2025,2026-09-22,mobility.com.ng / slot.ng
+TECNO,Pop 10C,103000.0,new,2.0,64.0,5000.0,13.0,8.0,Unisoc T606,No,90.0,6.6,2025,2026-09-22,mobility.com.ng / konga.com
+TECNO,Spark 30C,139000.0,new,4.0,128.0,5000.0,50.0,8.0,MediaTek Helio G36,No,90.0,6.6,2024,2026-09-22,mobility.com.ng
+TECNO,Spark 30 Pro,247000.0,new,8.0,128.0,5000.0,50.0,32.0,,No,120.0,6.78,2024,2026-09-22,mobility.com.ng
+TECNO,Spark 20,111300.0,new,8.0,128.0,5000.0,50.0,32.0,MediaTek Helio G85,No,90.0,6.56,2023,2026-09-22,mobility.com.ng / gsmarena.com
+Infinix,Smart 20,,new,4.0,64.0,5200.0,8.0,8.0,MediaTek Helio G81 Ultimate,No,120.0,6.78,2026,2026-09-22,mobility.com.ng
+Infinix,Note 60 Pro 5G,556000.0,new,8.0,256.0,6500.0,50.0,13.0,Qualcomm Snapdragon 7s Gen 4,Yes,144.0,6.78,2026,2026-09-22,mobility.com.ng / smartprix.com
+Infinix,Note 60 Pro,499000.0,new,8.0,128.0,6500.0,50.0,13.0,Qualcomm Snapdragon 7s Gen 4,No,144.0,6.78,2025,2026-09-22,mobility.com.ng (lower-storage 4G variant of Note 60 Pro 5G)
+Infinix,Hot 70,,new,4.0,256.0,5430.0,,,MediaTek,No,120.0,6.78,2026,2026-09-22,mobility.com.ng
+Infinix,Smart 10,,new,4.0,64.0,5000.0,,,Unisoc T7250,No,120.0,6.67,2025,2026-09-22,mobility.com.ng
+Samsung,Galaxy S26,1449600.0,new,12.0,256.0,4300.0,50.0,12.0,Qualcomm Snapdragon 8 Elite Gen 5,Yes,120.0,6.3,2026,2026-09-22,mobility.com.ng
+Samsung,Galaxy S26+,1700000.0,new,12.0,256.0,4900.0,50.0,12.0,Qualcomm Snapdragon 8 Elite Gen 5,Yes,120.0,6.7,2026,2026-09-22,mobility.com.ng
+Samsung,Galaxy S26 Ultra,1948500.0,new,12.0,256.0,5000.0,200.0,12.0,Qualcomm Snapdragon 8 Elite Gen 5,Yes,120.0,6.9,2026,2026-09-22,mobility.com.ng
+Samsung,Galaxy A37,677300.0,new,6.0,128.0,5000.0,50.0,12.0,Samsung Exynos 1480,Yes,120.0,6.7,2026,2026-09-22,mobility.com.ng
+Samsung,Galaxy A57,675000.0,new,8.0,128.0,5000.0,50.0,12.0,Samsung Exynos 1680,Yes,120.0,6.7,2026,2026-09-22,mobility.com.ng
+Samsung,Galaxy S25,975000.0,new,,,4000.0,,,Snapdragon 8 Elite,Yes,120.0,,2025,2026-09-22,mobility.com.ng
+Samsung,Galaxy S25+,1335000.0,new,12.0,256.0,4900.0,50.0,12.0,Snapdragon 8 Elite,Yes,120.0,,2025,2026-09-22,mobility.com.ng (well-documented public specs)
+Samsung,Galaxy S25 Ultra,1852000.0,new,12.0,256.0,5000.0,200.0,12.0,Snapdragon 8 Elite,Yes,120.0,6.9,2025,2026-09-22,mobility.com.ng
+Samsung,Galaxy A56 5G,577000.0,new,8.0,128.0,5000.0,50.0,12.0,Samsung Exynos 1580,Yes,120.0,6.7,2025,2026-09-22,mobility.com.ng
+Samsung,Galaxy A36 5G,460000.0,new,8.0,128.0,5000.0,50.0,12.0,Qualcomm Snapdragon 6 Gen 3,Yes,120.0,6.7,2025,2026-09-22,gsmarena.com
+Samsung,Galaxy A07,135489.0,new,4.0,64.0,5000.0,50.0,8.0,MediaTek Helio G99,No,90.0,6.7,2026,2026-05-27,techcabal.com
+Samsung,Galaxy A06,146005.0,new,4.0,128.0,5000.0,50.0,8.0,MediaTek Helio G85,No,90.0,6.7,2026,2026-05-27,techcabal.com
+itel,City 200,154100.0,new,4.0,128.0,5200.0,,,Unisoc T7250,No,120.0,6.78,2026,2026-09-22,mobility.com.ng
+itel,A200+,127100.0,new,3.0,64.0,6000.0,13.0,5.0,Unisoc T7250,No,120.0,6.75,2026,2026-09-22,mobility.com.ng
+itel,A200,,new,4.0,,6000.0,,,,No,120.0,6.75,2026,2026-09-22,mobility.com.ng
+itel,Power 80,,new,4.0,128.0,7000.0,48.0,12.0,,No,120.0,6.78,2026,2026-09-22,mobility.com.ng
+itel,Power 70,145000.0,new,4.0,128.0,6000.0,13.0,8.0,,No,,,2025,2026-09-22,mobility.com.ng
+itel,Super 26 Ultra,227700.0,new,8.0,128.0,6000.0,50.0,32.0,Unisoc T7300,No,144.0,6.78,2025,2026-09-22,mobility.com.ng
+Xiaomi,Redmi Note 15 Pro 5G,,new,8.0,256.0,6580.0,200.0,20.0,MediaTek Dimensity 7400 Ultra,Yes,120.0,6.83,2026,2026-09-22,mobility.com.ng
+Xiaomi,Redmi Note 15 5G,,new,6.0,128.0,5000.0,108.0,20.0,Qualcomm Snapdragon 6 Gen 3,Yes,120.0,6.77,2026,2026-09-22,mobility.com.ng
+Xiaomi,Redmi A7 Pro,149900.0,new,4.0,128.0,6000.0,32.0,5.0,Unisoc T7250,No,120.0,6.9,2026,2026-05-27,smartprix.com
+Xiaomi,Redmi 15C,153404.0,new,4.0,128.0,6000.0,50.0,8.0,MediaTek Helio G81 Ultra-class,No,120.0,6.9,2026,2026-05-27,techcabal.com
+Xiaomi,Redmi 14C,146600.0,new,6.0,128.0,5160.0,50.0,13.0,MediaTek Helio G81 Ultra,No,120.0,6.88,2025,2026-05-27,techcabal.com
+Xiaomi,Redmi 13C,98100.0,new,8.0,256.0,5000.0,50.0,8.0,MediaTek Helio G85,No,90.0,6.74,2024,2026-09-22,mysmartprice.com / gsmarena.com
+OPPO,A6 2026,,new,4.0,128.0,7000.0,50.0,8.0,Qualcomm Snapdragon 685,No,120.0,6.75,2026,2026-09-22,mobility.com.ng
+OPPO,A3X 4G,150000.0,new,4.0,128.0,5100.0,32.0,8.0,Qualcomm Snapdragon 680,No,,6.67,2024,2026-09-22,gsmarena.com
+OPPO,Reno13 5G,843900.0,new,12.0,256.0,5600.0,50.0,50.0,MediaTek Dimensity 8350,Yes,120.0,6.59,2025,2026-09-22,oppo.com official specs
+OPPO,Reno13 F 5G,599900.0,new,12.0,256.0,5800.0,50.0,32.0,Qualcomm Snapdragon 6 Gen 1,Yes,120.0,6.67,2025,2026-09-22,oppostore.pe official specs
+Google Pixel,10a,750000.0,new,8.0,128.0,5100.0,48.0,13.0,Google Tensor G4,Yes,120.0,6.3,2026,2026-09-22,mobility.com.ng (gray-market import)
+Google Pixel,10,1900000.0,new,12.0,256.0,4970.0,,,Google Tensor G5,Yes,120.0,6.3,2026,2026-09-22,chert.ng (gray-market import)
+Google Pixel,10 Pro,2868608.0,new,16.0,256.0,4870.0,50.0,42.0,Google Tensor G5,Yes,120.0,6.3,2026,2026-09-22,chert.ng (gray-market import)
+Apple iPhone,SE 2022,460000.0,new,,64.0,,12.0,,Apple A15 Bionic,Yes,60.0,4.7,2022,2026-04-01,blog.slot.ng
+Apple iPhone,12,690000.0,new,,128.0,,12.0,,Apple A14 Bionic,Yes,60.0,6.1,2020,2026-04-01,blog.slot.ng
+Apple iPhone,13,725000.0,new,,128.0,,12.0,,Apple A15 Bionic,Yes,60.0,6.1,2021,2026-04-01,blog.slot.ng
+Apple iPhone,13 Pro,875000.0,new,,128.0,,12.0,,Apple A15 Bionic,Yes,120.0,6.1,2021,2026-04-01,blog.slot.ng
+Apple iPhone,14,925000.0,new,,128.0,,12.0,,Apple A15 Bionic,Yes,60.0,6.1,2022,2026-04-01,blog.slot.ng
+Apple iPhone,14 Pro,1275000.0,new,,128.0,,48.0,,Apple A16 Bionic,Yes,120.0,6.1,2022,2026-04-01,blog.slot.ng
+Apple iPhone,14 Pro Max,1475000.0,new,,128.0,,48.0,,Apple A16 Bionic,Yes,120.0,6.7,2022,2026-04-01,blog.slot.ng
+Apple iPhone,15,1225000.0,new,,128.0,,48.0,,Apple A16 Bionic,Yes,60.0,6.1,2023,2026-04-01,blog.slot.ng
+Apple iPhone,15 Plus,1425000.0,new,,128.0,,48.0,,Apple A16 Bionic,Yes,60.0,6.7,2023,2026-04-01,blog.slot.ng
+Apple iPhone,15 Pro,1850000.0,new,,128.0,,48.0,,Apple A17 Pro,Yes,120.0,6.1,2023,2026-04-01,blog.slot.ng
+Apple iPhone,15 Pro Max,2250000.0,new,,256.0,,48.0,,Apple A17 Pro,Yes,120.0,6.7,2023,2026-04-01,blog.slot.ng
+Apple iPhone,17,800000.0,new,,128.0,,48.0,,Apple A19,Yes,60.0,6.3,2026,2026-09-22,marcotran.com
+Apple iPhone,17 Plus,900000.0,new,,128.0,,48.0,,Apple A19,Yes,60.0,6.3,2026,2026-09-22,marcotran.com
+Apple iPhone,17 Pro,1150000.0,new,,128.0,,48.0,,Apple A19 Pro,Yes,120.0,6.3,2026,2026-09-22,marcotran.com
+Apple iPhone,17 Pro Max,1500000.0,new,,128.0,,48.0,,Apple A19 Pro,Yes,120.0,6.9,2026,2026-09-22,marcotran.com

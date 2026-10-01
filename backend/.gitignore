@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Local environment files (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Netlify and build output
+.netlify/
+dist/
+build/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
