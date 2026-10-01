@@ -74,43 +74,46 @@ export default function ResultList({ result }) {
 
   return (
     <div className="mt-6">
-      {/* A thin catalog is a real, measured condition (M3 found the 2m+ band has
-          only 2 phones), so say it rather than showing 2 results as if they
-          were the full answer. */}
       {result.message && (
-        <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <p className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 shadow-sm">
           {result.message}
         </p>
       )}
 
-      <ol className="space-y-3">
+      <ol className="space-y-4">
         {picks.map((pick) => (
           <li
             key={pick.product_id}
-            className="rounded-xl border border-zinc-200 bg-white p-4"
+            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/50"
           >
             <div className="flex items-start gap-3">
-              {/* Rank number. Not a score, just the position. */}
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-sm font-semibold text-zinc-700">
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-sm font-bold text-blue-700">
                 {pick.rank}
               </span>
 
               <div className="min-w-0 flex-1">
-                <Link
-                  href={`/phones/${pick.product_id}`}
-                  className="font-medium text-zinc-900 hover:underline"
-                >
-                  {pick.brand} {pick.model}
-                </Link>
-                <p className="text-sm font-semibold text-zinc-900">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Link
+                    href={`/phones/${pick.product_id}`}
+                    className="text-lg font-semibold text-slate-900 hover:text-blue-700"
+                  >
+                    {pick.brand} {pick.model}
+                  </Link>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-600">
+                    Top {pick.rank}
+                  </span>
+                </div>
+
+                <p className="mt-1 text-base font-semibold text-slate-900">
                   {formatNaira(pick.price_ngn)}
                 </p>
 
                 {pick.reasons && pick.reasons.length > 0 && (
-                  <ul className="mt-1.5 space-y-0.5">
+                  <ul className="mt-2 space-y-1.5">
                     {pick.reasons.map((reason) => (
-                      <li key={reason} className="text-sm text-zinc-700">
-                        {reason}
+                      <li key={reason} className="flex items-start gap-2 text-sm text-slate-700">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600" />
+                        <span>{reason}</span>
                       </li>
                     ))}
                   </ul>
@@ -118,16 +121,16 @@ export default function ResultList({ result }) {
 
                 <RatingPills ratings={pick.ratings} />
 
-                <div className="mt-3 flex gap-2">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     onClick={() => handleAdd(pick)}
-                    className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700"
+                    className="rounded-full bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
                   >
                     {addedId === pick.product_id ? "Added to cart" : "Add to cart"}
                   </button>
                   <Link
                     href={`/phones/${pick.product_id}`}
-                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+                    className="rounded-full border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
                   >
                     View details
                   </Link>
@@ -139,7 +142,7 @@ export default function ResultList({ result }) {
       </ol>
 
       {result.model_version && (
-        <p className="mt-4 text-xs text-zinc-400">
+        <p className="mt-4 text-xs text-slate-500">
           Ranked by our model, version {result.model_version}.
         </p>
       )}

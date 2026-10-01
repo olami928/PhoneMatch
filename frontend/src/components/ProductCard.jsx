@@ -37,15 +37,15 @@ export default function ProductCard({ product }) {
   }
 
   return (
-    <article className="flex flex-col rounded-xl border border-zinc-200 bg-white p-3">
-      <Link href={`/phones/${product.product_id}`} className="block">
+    <article className="group flex flex-col rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm shadow-slate-200/50 transition hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-100/60">
+      <Link href={`/phones/${product.product_id}`} className="block overflow-hidden rounded-xl">
         {product.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={product.image}
             alt={product.name}
             loading="lazy"
-            className="aspect-4/3 w-full rounded-lg object-cover"
+            className="aspect-4/3 w-full rounded-xl object-cover transition duration-300 group-hover:scale-[1.02]"
           />
         ) : (
           <PhonePlaceholder brand={product.brand} name={product.name} />
@@ -53,32 +53,35 @@ export default function ProductCard({ product }) {
       </Link>
 
       <div className="mt-3 flex flex-1 flex-col">
-        <Link
-          href={`/phones/${product.product_id}`}
-          className="font-medium text-zinc-900 hover:underline"
-        >
-          {product.name}
-        </Link>
+        <div className="flex items-start justify-between gap-2">
+          <Link
+            href={`/phones/${product.product_id}`}
+            className="text-base font-semibold text-slate-900 hover:text-blue-700"
+          >
+            {product.name}
+          </Link>
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600">
+            {product.brand}
+          </span>
+        </div>
 
-        <p className="mt-0.5 text-xs text-zinc-500">
-          {product.ram_gb}GB RAM · {product.storage_gb}GB ·{" "}
-          {product.battery_mah}mAh
+        <p className="mt-1 text-xs text-slate-500">
+          {product.ram_gb}GB RAM · {product.storage_gb}GB · {product.battery_mah}mAh
         </p>
 
-        <p className="mt-2 text-lg font-semibold text-zinc-900">
+        <p className="mt-3 text-lg font-semibold text-slate-900">
           {formatNaira(product.price_ngn)}
         </p>
 
         <div className="mt-auto pt-3">
           {outOfStock ? (
-            // Feature 20: zero stock hides the Add button and says so plainly.
-            <p className="rounded-lg border border-zinc-200 px-3 py-2 text-center text-sm text-zinc-500">
+            <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-center text-sm font-medium text-slate-500">
               Out of stock
             </p>
           ) : (
             <button
               onClick={handleAdd}
-              className="w-full rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+              className="w-full rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
               {added ? "Added to cart" : "Add to cart"}
             </button>

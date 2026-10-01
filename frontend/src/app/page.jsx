@@ -40,53 +40,73 @@ export default async function Home() {
       <SiteHeader />
 
       <main className="flex-1">
-        {/* Hero. D18/D20: the model is the main call to action, not browsing. */}
-        <section className="border-b border-zinc-200 bg-white">
-          <div className="mx-auto max-w-5xl px-4 py-12 text-center">
-            <h1 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
-              Not sure which phone to buy?
-            </h1>
-            <p className="mx-auto mt-3 max-w-xl text-zinc-600">
-              Answer 5 quick questions. Our model looks at every phone in stock and
-              picks the ones that fit your budget and what you actually need.
-            </p>
+        <section className="relative overflow-hidden border-b border-slate-200/80 bg-white/70">
+          <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-r from-blue-100 via-indigo-50 to-cyan-50" />
+          <div className="relative mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
+            <div className="mx-auto max-w-3xl text-center">
+              <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium tracking-[0.12em] text-blue-700 uppercase">
+                Smart picks, not guesswork
+              </span>
+              <h1 className="mt-5 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+                Find the right phone for your budget and your day.
+              </h1>
+              <p className="mx-auto mt-4 max-w-2xl text-base text-slate-600 sm:text-lg">
+                Answer five quick questions and our model narrows the catalog to the phones that fit your needs, your spending range, and what matters most to you.
+              </p>
 
-            <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                href="/find"
-                className="w-full rounded-lg bg-zinc-900 px-6 py-3 text-center text-sm font-medium text-white hover:bg-zinc-700 sm:w-auto"
-              >
-                Find my phone
-              </Link>
-              <Link
-                href="/phones"
-                className="w-full rounded-lg border border-zinc-300 px-6 py-3 text-center text-sm font-medium text-zinc-800 hover:bg-zinc-50 sm:w-auto"
-              >
-                Browse all phones
-              </Link>
+              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <Link
+                  href="/find"
+                  className="w-full rounded-full bg-slate-900 px-6 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto"
+                >
+                  Find my phone
+                </Link>
+                <Link
+                  href="/phones"
+                  className="w-full rounded-full border border-slate-300 bg-white px-6 py-3 text-center text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 sm:w-auto"
+                >
+                  Browse all phones
+                </Link>
+              </div>
+
+              <p className="mt-4 text-sm text-slate-500">
+                Takes about 30 seconds. No personal details required.
+              </p>
             </div>
 
-            <p className="mt-3 text-xs text-zinc-500">
-              Takes about 30 seconds. We never ask for personal details.
-            </p>
+            <div className="mt-10 grid gap-4 sm:grid-cols-3">
+              {[
+                { title: "Budget-aware", body: "Only phones within your range are considered." },
+                { title: "Use-case based", body: "Camera, battery, gaming, work and everyday use each get a fair look." },
+                { title: "Easy to buy", body: "Add the winner straight to your cart and checkout in minutes." },
+              ].map((item) => (
+                <div key={item.title} className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+                  <div className="mb-3 h-10 w-10 rounded-xl bg-blue-100 text-lg font-semibold text-blue-700 flex items-center justify-center">✓</div>
+                  <h2 className="text-base font-semibold text-slate-900">{item.title}</h2>
+                  <p className="mt-2 text-sm text-slate-600">{item.body}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* Popular phones. */}
-        <section className="mx-auto max-w-5xl px-4 py-10">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-xl font-semibold text-zinc-900">Popular phones</h2>
-            <Link href="/phones" className="text-sm text-zinc-600 underline hover:text-zinc-900">
+        <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+          <div className="flex items-baseline justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.12em] text-blue-700">Popular picks</p>
+              <h2 className="mt-1 text-2xl font-semibold text-slate-900">Trending phones right now</h2>
+            </div>
+            <Link href="/phones" className="text-sm font-medium text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline">
               See all
             </Link>
           </div>
 
           {popular.length === 0 ? (
-            <p className="mt-4 rounded-lg border border-zinc-200 p-6 text-center text-sm text-zinc-600">
+            <p className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-6 text-center text-sm text-slate-600 shadow-sm">
               We could not load the catalog just now. Please refresh in a moment.
             </p>
           ) : (
-            <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
               {popular.map((product) => (
                 <ProductCard key={product.product_id} product={product} />
               ))}

@@ -40,20 +40,24 @@ export default async function PhonesPage({ searchParams }) {
     <>
       <SiteHeader />
 
-      <main className="mx-auto max-w-5xl px-4 py-6">
-        <h1 className="text-2xl font-semibold text-zinc-900">Shop all phones</h1>
-        <p className="mt-1 text-sm text-zinc-600">
-          Not sure where to start? Use our model and answer 5 quick questions.
-        </p>
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        <div className="rounded-[28px] border border-slate-200 bg-white/85 p-5 shadow-sm shadow-slate-200/50">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
+            Shop catalog
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Shop all phones</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Not sure where to start? Use our model and answer 5 quick questions.
+          </p>
+        </div>
 
-        {/* Price filter. Each band is a link, so it works without JavaScript. */}
-        <nav aria-label="Filter by price" className="mt-4 flex flex-wrap gap-2">
+        <nav aria-label="Filter by price" className="mt-5 flex flex-wrap gap-2">
           <Link
             href="/phones"
             className={
               !params.min_price && !params.max_price
-                ? "rounded-full bg-zinc-900 px-3 py-1.5 text-sm text-white"
-                : "rounded-full border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50"
+                ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm"
+                : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50"
             }
           >
             All
@@ -68,8 +72,8 @@ export default async function PhonesPage({ searchParams }) {
                 href={`/phones?min_price=${band.min}&max_price=${band.max}`}
                 className={
                   active
-                    ? "rounded-full bg-zinc-900 px-3 py-1.5 text-sm text-white"
-                    : "rounded-full border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50"
+                    ? "rounded-full bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm shadow-blue-200"
+                    : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50"
                 }
               >
                 {band.label}
@@ -78,25 +82,25 @@ export default async function PhonesPage({ searchParams }) {
           })}
         </nav>
 
-        <p className="mt-4 text-sm text-zinc-600" aria-live="polite">
+        <p className="mt-4 text-sm text-slate-600" aria-live="polite">
           {count} {count === 1 ? "phone" : "phones"}
         </p>
 
         {products.length === 0 ? (
-          <div className="mt-6 rounded-lg border border-zinc-200 p-6 text-center">
-            <p className="font-medium text-zinc-900">No phones in this price range</p>
-            <p className="mt-1 text-sm text-zinc-600">
+          <div className="mt-6 rounded-[24px] border border-slate-200 bg-white/85 p-6 text-center shadow-sm">
+            <p className="font-semibold text-slate-900">No phones in this price range</p>
+            <p className="mt-1 text-sm text-slate-600">
               Try a wider range, or let our model pick from everything in stock.
             </p>
             <Link
               href="/phones"
-              className="mt-4 inline-block rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white"
+              className="mt-4 inline-block rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
             >
               Clear the filter
             </Link>
           </div>
         ) : (
-          <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
             {products.map((product) => (
               <ProductCard key={product.product_id} product={product} />
             ))}

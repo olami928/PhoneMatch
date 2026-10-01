@@ -95,14 +95,13 @@ export default function Questionnaire({ questions }) {
   }
 
   return (
-    <div>
-      {/* Progress. aria attributes so a screen reader announces the position. */}
+    <div className="rounded-[28px] border border-slate-200 bg-white/90 p-5 shadow-lg shadow-slate-200/60 sm:p-7">
       <div className="mb-6">
-        <div className="flex items-center justify-between text-sm text-zinc-600">
+        <div className="flex items-center justify-between text-sm text-slate-600">
           <span>
             Question {question.number} of {total}
           </span>
-          <span>{Math.round(((step + 1) / total) * 100)}%</span>
+          <span className="font-medium text-slate-800">{Math.round(((step + 1) / total) * 100)}%</span>
         </div>
         <div
           role="progressbar"
@@ -110,21 +109,28 @@ export default function Questionnaire({ questions }) {
           aria-valuemin={1}
           aria-valuemax={total}
           aria-label="Questionnaire progress"
-          className="mt-2 h-2 w-full rounded-full bg-zinc-200"
+          className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-200"
         >
           <div
-            className="h-2 rounded-full bg-zinc-900 transition-all"
+            className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all"
             style={{ width: `${((step + 1) / total) * 100}%` }}
           />
         </div>
       </div>
 
-      <h1 className="text-2xl font-semibold text-zinc-900">{question.question}</h1>
-      {question.help && <p className="mt-1 text-sm text-zinc-600">{question.help}</p>}
+      <div className="mb-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+          Smart match
+        </p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          {question.question}
+        </h1>
+        {question.help && <p className="mt-2 text-sm text-slate-600">{question.help}</p>}
+      </div>
 
       <fieldset className="mt-5">
         <legend className="sr-only">{question.question}</legend>
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {question.options.map((option) => {
             const isSelected = selected === option.label;
             return (
@@ -132,8 +138,8 @@ export default function Questionnaire({ questions }) {
                 key={option.label}
                 className={
                   isSelected
-                    ? "flex cursor-pointer items-center gap-3 rounded-lg border-2 border-zinc-900 bg-zinc-50 p-3"
-                    : "flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-300 p-3 hover:bg-zinc-50"
+                    ? "flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-blue-600 bg-blue-50 p-3.5 shadow-sm shadow-blue-100"
+                    : "flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 transition hover:border-slate-300 hover:bg-white"
                 }
               >
                 <input
@@ -142,37 +148,27 @@ export default function Questionnaire({ questions }) {
                   value={option.label}
                   checked={isSelected}
                   onChange={() => choose(option)}
-                  className="h-4 w-4 accent-zinc-900"
+                  className="h-4 w-4 accent-blue-600"
                 />
-                <span className="text-sm font-medium text-zinc-900">
-                  {option.label}
-                </span>
+                <span className="text-sm font-medium text-slate-800">{option.label}</span>
               </label>
             );
           })}
         </div>
       </fieldset>
 
-      <div className="mt-6 flex items-center gap-3">
+      <div className="mt-7 flex items-center gap-3">
         <button
           onClick={goBack}
-          className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+          className="rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
         >
           {step === 0 ? "Cancel" : "Back"}
         </button>
 
-        {/* On every question except the last, choosing an option moves on by
-            itself, so Next is only needed when nothing is picked yet.
-
-            On the LAST question the opposite is true: there is nowhere to
-            advance to, so an explicit button is the only way to finish. It must
-            therefore show whenever the question is answered. Without this the
-            shopper picks a brand, nothing happens, and the only way out is
-            "Skip", which throws the answer away. */}
         {showAction && (
           <button
             onClick={next}
-            className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-700"
+            className="ml-auto rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 transition hover:bg-blue-700"
           >
             {isLast ? "See my phones" : "Next"}
           </button>
@@ -181,9 +177,9 @@ export default function Questionnaire({ questions }) {
         {question.skippable && (
           <button
             onClick={skip}
-            className="px-2 py-2.5 text-sm text-zinc-600 underline hover:text-zinc-900"
+            className="text-sm font-medium text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline"
           >
-            Skip this question
+            Skip
           </button>
         )}
       </div>
