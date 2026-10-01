@@ -6,7 +6,34 @@
 
 const express = require("express");
 const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
 const { getCatalog } = require("./catalog");
+
+// The frozen questionnaire config. Read once and cached, because it does not
+// change while the server runs, and re-reading a file on every request would be
+// wasteful for no benefit.
+const QUESTIONNAIRE_PATH = path.join(
+  __dirname,
+  "..",
+  "..",
+  "model",
+  "config",
+  "questionnaire_v1.json"
+);
+
+let questionnaireCache = null;
+
+function readQuestionnaire() {
+  if (questionnaireCache) return questionnaireCache;
+  const raw = fs.readFileSync(QUESTIONNAIRE_PATH, "utf8");
+  const parsed = JSON.parse(raw);
+  if (!Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+    throw new Error(`${QUESTIONNAIRE_PATH} has no questions.`);
+  }
+  questionnaireCache = parsed;
+  return questionnaireCache;
+}
 
 // Which websites may call this API. The frontend runs on a different address,
 // so the browser blocks calls unless we allow the frontend's address here.
@@ -133,6 +160,62 @@ app.get("/products/:id", (req, res) => {
 });
 
 // Any unknown /api route gets a clear 404 instead of a vague error.
+// --- The questionnaire ------------------------------------------------------
+//
+// The five questions are NOT written here. They live in
+// model/config/questionnaire_v1.json, which is the frozen single source of truth
+// (D21, and the "keep weights in a config file" model rule). This route only
+// reads that file and strips the internal notes, so the wording can be changed
+// by the team without touching frontend or backend code.
+//
+// It mirrors questionnaire_for_frontend() in model/src/questionnaire_mapper.py.
+// The internal `why` and `alias_of` keys are stripped here too: they record our
+// reasoning for each option and must never reach a shopper's browser.
+app.get("/questionnaire", (req, res) => {
+  let config;
+  try {
+    config = readQuestionnaire();
+  } catch (error) {
+    return res.status(500).json({
+      error: "The questionnaire could not be loaded.",
+      detail: error.message,
+    });
+  }
+
+  const questions = config.questions.map((q) => ({
+    id: q.id,
+    number: q.number,
+    question: q.question,
+    help: q.help || null,
+    required: Boolean(q.required),
+    skippable: Boolean(q.skippable),
+    options: q.options.map((o) => {
+      const clean = {};
+      for (const [key, value] of Object.entries(o)) {
+        if (key !== "why" && key !== "alias_of") clean[key] = value;
+      }
+      // The config marks the budget options with a sentinel because budget is
+      // the one question whose options are not a plain enum. The UI only needs
+      // to know it is a budget question, so it gets a readable value.
+      if (clean.value === "__price__") clean.value = "price";
+      return clean;
+    }),
+  }));
+
+  res.json({ version: config.version, questions });
+});
+
+// POST /recommend is the real recommendation call, and it is NOT built yet: it
+// needs the Python model service (M7). Returning a clear 501 stops the
+// questionnaire from looking broken while the model is being deployed, and
+// records the dependency in one visible place.
+app.post("/recommend", (req, res) => {
+  res.status(501).json({
+    error:
+      "The recommendation service is not connected yet. It is deployed at model step M7.",
+  });
+});
+
 app.use((req, res) => {
   res.status(404).json({ error: "Not found", path: req.originalUrl });
 });

@@ -121,3 +121,10 @@ function normaliseProduct(row) {
     five_g: row.five_g === true || row.five_g === "true" || row.five_g === "Yes",
   };
 }
+
+// Fetches the five questions from the backend, which reads the frozen config.
+// Throws with a readable message so the questionnaire page can show something
+// useful instead of a blank screen.
+export async function fetchQuestionnaire() {
+  return apiFetch("/questionnaire");
+}

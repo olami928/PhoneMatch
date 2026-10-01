@@ -53,7 +53,7 @@ export default async function Home() {
 
             <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
-                href="/phones"
+                href="/find"
                 className="w-full rounded-lg bg-zinc-900 px-6 py-3 text-center text-sm font-medium text-white hover:bg-zinc-700 sm:w-auto"
               >
                 Find my phone
@@ -67,7 +67,7 @@ export default async function Home() {
             </div>
 
             <p className="mt-3 text-xs text-zinc-500">
-              The questionnaire arrives once the model service is deployed.
+              Takes about 30 seconds. We never ask for personal details.
             </p>
           </div>
         </section>

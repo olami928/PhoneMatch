@@ -57,7 +57,7 @@ export default function CartPage() {
                 Shop phones
               </Link>
               <Link
-                href="/"
+                href="/find"
                 className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium"
               >
                 Find my phone

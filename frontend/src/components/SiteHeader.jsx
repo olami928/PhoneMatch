@@ -8,9 +8,8 @@
 //  - the model entry point must be reachable from every page, so it stays in
 //    the header rather than only on the home page
 //
-// "Find my phone" is not wired to the questionnaire yet: that is Stage 10, and
-// it needs the model service (M7). Until then it points at the filter, so the
-// button is never a dead end.
+// This button now goes to the real questionnaire at /find. The questionnaire
+// itself is live; only the ranking at the end is waiting on the model service.
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -55,7 +54,7 @@ export default function SiteHeader() {
         <div className="ml-auto flex items-center gap-2">
           {/* The main call to action. Sits in the header on every page. */}
           <Link
-            href="/phones"
+            href="/find"
             className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700"
           >
             Find my phone
