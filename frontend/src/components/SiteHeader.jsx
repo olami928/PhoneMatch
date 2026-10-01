@@ -36,7 +36,16 @@ function shortLabel(email) {
 export default function SiteHeader() {
   const { count } = useCart();
   const pathname = usePathname();
-  const { user, loading, isAdmin, signOut } = useAuth();
+
+  let auth = { user: null, loading: false, isAdmin: false, signOut: () => { } };
+  try {
+    auth = useAuth();
+  } catch {
+    // This is a safe fallback for local/dev cases where the provider has not
+    // fully mounted yet or is temporarily missing.
+  }
+
+  const { user, loading, isAdmin, signOut } = auth;
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">

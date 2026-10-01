@@ -29,15 +29,38 @@ echo "Secret leak check"
 # --- 1. tracked files must never contain key-shaped values -----------------
 echo
 echo "1. scanning git-tracked files for key material"
-# Match the real prefixes plus the long-lived JWT form of the old keys.
-PATTERN='sb_secret_[A-Za-z0-9_-]{16,}|sb_publishable_[A-Za-z0-9_-]{16,}|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9[A-Za-z0-9_.-]{40,}'
+# TWO patterns, because the two Supabase keys are NOT equally dangerous:
+#
+#   SECRET_PATTERN     sb_secret_... bypasses row level security completely.
+#                      One occurrence anywhere is a serious leak. Hard failure.
+#   PUBLISHABLE_PATTERN sb_publishable_... is DESIGNED to be public. Supabase
+#                      publishes it in the browser bundle and its power is
+#                      limited by row level security policies. A frontend that
+#                      calls Supabase Auth DIRECTLY (which sign-in does) cannot
+#                      work without it, so flagging it as a leak would block
+#                      correct code. Reported for visibility, never a failure.
+#
+# The JWT form of the retired `anon`/`service_role` keys still fails hard.
+SECRET_PATTERN='sb_secret_[A-Za-z0-9_-]{16,}|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9[A-Za-z0-9_.-]{40,}'
+PUBLISHABLE_PATTERN='sb_publishable_[A-Za-z0-9_-]{16,}'
+PATTERN="$SECRET_PATTERN|$PUBLISHABLE_PATTERN"
 
-HITS=$(git ls-files -z | xargs -0 grep -lE "$PATTERN" 2>/dev/null | grep -v '^scripts/check-for-secrets.sh$')
+HITS=$(git ls-files -z | xargs -0 grep -lE "$SECRET_PATTERN" 2>/dev/null | grep -v '^scripts/check-for-secrets.sh$')
 if [ -n "$HITS" ]; then
-  bad "key-shaped value found in tracked file(s):"
+  bad "a SECRET key was found in tracked file(s):"
   echo "$HITS" | sed 's/^/       /'
+  note "sb_secret_ bypasses row level security. Rotate it if it was ever committed."
 else
-  note "OK  no key material in tracked files"
+  note "OK  no secret key in tracked files"
+fi
+
+# The publishable key is allowed, but say so, so its presence is a decision
+# someone made rather than something that quietly slipped in.
+PUB_TRACKED=$(git ls-files -z | xargs -0 grep -lE "$PUBLISHABLE_PATTERN" 2>/dev/null | grep -v '^scripts/check-for-secrets.sh$')
+if [ -n "$PUB_TRACKED" ]; then
+  note "note publishable key present (safe by design, RLS-bounded):"
+  echo "$PUB_TRACKED" | sed 's/^/       /'
+  note "     it should only ever be the sb_publishable_ value, never sb_secret_"
 fi
 
 # --- 2. the frontend must not reference any secret -------------------------
@@ -58,12 +81,24 @@ fi
 echo
 echo "3. scanning the built frontend bundle"
 if [ -d frontend/.next ]; then
-  BUNDLE_HITS=$(grep -rlE "$PATTERN" frontend/.next/static frontend/.next/server 2>/dev/null | head -5)
-  if [ -n "$BUNDLE_HITS" ]; then
-    bad "key material found in the build output:"
-    echo "$BUNDLE_HITS" | sed 's/^/       /'
+  # The SECRET key in the bundle is the disaster: it would let any visitor read
+  # every order and customer address. This must fail the build.
+  SECRET_HITS=$(grep -rlE "$SECRET_PATTERN" frontend/.next/static frontend/.next/server 2>/dev/null | head -5)
+  if [ -n "$SECRET_HITS" ]; then
+    bad "THE SECRET KEY IS IN THE BUILD OUTPUT. Anyone can read every order:"
+    echo "$SECRET_HITS" | sed 's/^/       /'
+    note "Remove it, then rebuild. If it was ever deployed, rotate it in Supabase."
   else
-    note "OK  no key material in the build output"
+    note "OK  the secret key is not in the build output"
+  fi
+
+  # The publishable key IS expected in the bundle once sign-in exists, because
+  # Next.js inlines NEXT_PUBLIC_* and the browser must call Supabase Auth. It is
+  # reported so it is a conscious decision, not a surprise.
+  PUB_HITS=$(grep -rlE "$PUBLISHABLE_PATTERN" frontend/.next/static frontend/.next/server 2>/dev/null | head -3)
+  if [ -n "$PUB_HITS" ]; then
+    note "note publishable key is in the bundle (expected; it is RLS-bounded):"
+    echo "$PUB_HITS" | sed 's/^/       /'
   fi
 else
   note "SKIP no build found (run npm run build to check this)"

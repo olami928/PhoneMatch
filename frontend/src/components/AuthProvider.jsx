@@ -12,7 +12,7 @@
 // calling the route directly — the backend's `requireAdmin` is what actually
 // blocks them, and it reads the role from the database, not from this context.
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser, isAuthConfigured, signOut as supabaseSignOut } from "../lib/supabaseClient";
 import { fetchMe } from "../lib/api";
 
@@ -26,6 +26,10 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(isAuthConfigured());
   const [role, setRole] = useState("customer");
 
+  // Remembers the last access token we put into state. A ref, not state: it is
+  // bookkeeping for the loop guard below and must never trigger a render itself.
+  const seenTokenRef = useRef(null);
+
   useEffect(() => {
     const supabase = supabaseBrowser();
     if (!supabase) {
@@ -37,20 +41,34 @@ export function AuthProvider({ children }) {
 
     let active = true;
 
+    // Only the TOKEN is compared, never the session object.
+    //
+    // WHY: onAuthStateChange re-emits with a brand new session object on every
+    // event, so `setSession(next)` with an object identity always looks like a
+    // change and re-renders forever — React then kills the page with "Too many
+    // re-renders". The access token is a string, so comparing it is stable and
+    // the loop stops. Found by the build, not by reading.
+    const tokenOf = (s) => s?.access_token ?? null;
+
+    const apply = (next) => {
+      if (!active) return;
+      const token = tokenOf(next);
+      // Nothing changed, so do not touch state. This is what breaks the loop.
+      if (token === seenTokenRef.current) return;
+      seenTokenRef.current = token;
+      setSession(next ?? null);
+      setLoading(false);
+    };
+
     // getSession() reads the token Supabase saved in local storage, so a signed-in
     // shopper stays signed in across visits without clicking anything.
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setSession(data?.session ?? null);
-      setLoading(false);
-    });
+    supabase.auth.getSession().then(({ data }) => apply(data?.session ?? null));
 
     // Keeps the session in sync with sign-in, sign-out and token refresh,
     // including in another tab. Without this, signing out in one tab would leave
     // the other tab looking signed in.
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next ?? null);
-      setLoading(false);
+      apply(next ?? null);
     });
 
     return () => {
@@ -87,7 +105,11 @@ export function AuthProvider({ children }) {
     return () => {
       active = false;
     };
-  }, [user, session?.access_token]);
+    // Depends on the TOKEN, not on `user`. `user` is a fresh object whenever the
+    // session is re-emitted, which would re-fire this effect (and another
+    // network call) on every auth event. The token changes only when the person
+    // actually signs in, signs out, or the token is refreshed.
+  }, [user?.id, session?.access_token]);
 
   const value = useMemo(
     () => ({
