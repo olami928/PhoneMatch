@@ -1,8 +1,9 @@
 # Legacy model (the owner's original version)
 
 This is the recommender the owner built before the shop. It is kept here for the record.
-It is **not** what the shop ships in v1. See the M1 audit in `AGENTS.md` section 8 for the
-full write-up and the decisions (D31, D32).
+**The Random Forest in here IS the v1 ranking engine** (owner decision, D34), but it is
+wrapped by `model/src/shop_recommender.py` rather than called directly. See the M1 audit in
+`AGENTS.md` section 8 for the full write-up and the decisions (D30 to D35).
 
 ## What is here
 
@@ -27,9 +28,10 @@ So the model learns to copy the rules. That is why the numbers look so good (MAE
 and why it recommends the same phones in the same order as the rules. It is distillation, not
 learning from real shoppers. `build_training_data.py` says this in its own docstring.
 
-There is no real labeled data in this repo. v1 of the shop uses the transparent scorer
-(`scoring.py`) instead. The Random Forest may come back at step M5, once the shop has real
-feedback and orders.
+There is no real labeled data in this repo. The forest ships as the v1 ranking engine (D34), but
+its quality ceiling is the rule scorer, because that is what it was trained to reproduce. `scoring.py`
+stays in the loop and is still required: it generates the reason lines and the ratings. M5 is when
+real feedback and orders can raise that ceiling.
 
 ## Run it
 
@@ -53,7 +55,22 @@ for r in top_recommendations(cat, p, 3): print(r)
 /home/dimeji/venv/bin/python src/train_model.py
 ```
 
-`ml_model.joblib` is git-ignored on purpose. It is 42 MB and can be rebuilt from the scripts.
+## If you have just cloned this repo
+
+`ml_model.joblib` is git-ignored on purpose (42 MB, and it is fully regeneratable). **Nothing in
+`model/src/` will run until you rebuild it**, because `shop_recommender.py` loads the forest.
+Do this once after cloning:
+
+```bash
+/home/dimeji/venv/bin/pip install -r model/legacy/requirements.txt
+/home/dimeji/venv/bin/python model/legacy/src/train_model.py
+
+# then the acceptance check works:
+/home/dimeji/venv/bin/python model/src/test_personas.py
+```
+
+`train_model.py` reads `data/training_data.csv`, which **is** committed, so the rebuild is
+deterministic and needs no network. Verified from a clean clone: retrain, then 10/10 personas pass.
 
 ## Known weak spots (to fix in the shop baseline)
 

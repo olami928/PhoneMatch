@@ -48,9 +48,9 @@ The shop also includes:
 
 ## 3. Status board
 
-**Last updated:** 2026-10-01 (Session 5)
+**Last updated:** 2026-10-01 (Session 8)
 
-**Current phase:** Model track **M1–M4 all DONE** — the recommender runs and passes 10 personas. Stage 1 is **built and verified locally** (frontend renders, fetches `/hello` from the backend, CORS confirmed). Nothing is deployed and nothing is committed to git yet. Next: M5, or deploying Stage 1 to Vercel + Netlify.
+**Current phase:** Model track **M1–M4 all DONE and committed to git** (commit `8ba5ef2`, 47 files). Stage 1 is **built and verified locally** and is committed too. Nothing is deployed, and nothing has been pushed to GitHub yet. Next: push, then deploy Stage 1 to Vercel + Netlify.
 
 | Item | Status |
 |---|---|
@@ -60,7 +60,7 @@ The shop also includes:
 | Existing model | **Audited (M1, Session 4).** Python 3.12, transparent weighted scorer + a Random Forest distilled from it. Lives in `model/legacy/`. No real labeled data |
 | Model rework | M1–M4 done. Random Forest ships (D34). `model/data/phones.csv` (63 phones, 0 missing), `shop_recommender.recommend()`, 10/10 personas pass. Next: M5 |
 | Shop Stage 1 | **Built and VERIFIED locally (Session 7).** Next.js 16.3.8 serves the page, fetches `/hello`, backend CORS returns the right origin. Not deployed yet|
-| Code written | Yes: backend (Node/Express) + frontend (Next.js) + `API_CONTRACT.md`, `README.md`. Not committed to git yet |
+| Code written | Yes: backend (Node/Express) + frontend (Next.js) + `API_CONTRACT.md`, `README.md`. **All committed (`8ba5ef2`)** but **not pushed to GitHub yet** |
 | Agent role | Agent writes the code, owner reviews and runs it (D25) |
 | Accounts created (Supabase, Mailgun, Google Cloud, Vercel, Netlify) | Not confirmed, not needed until Stage 3+ (D27) |
 
@@ -75,8 +75,8 @@ The shop also includes:
 7. **Start M2:** ~~freeze the questionnaire and write the answer-to-feature-and-weight map as a config file~~ **DONE (Session 5).** `model/config/questionnaire_v1.json` + tested `model/src/questionnaire_mapper.py`; map table is in the M2 box in section 8.
 8. ~~Build `model/data/phones.csv` with a stable `product_id`, all required features, and no missing values.~~ **DONE (Session 6).** 63 phones, 0 missing values, ids verified to join. See the M3 box.
 9. ~~**M4** the shop recommender~~ **DONE (Session 7).** `model/src/shop_recommender.py` + `test_personas.py`, 10/10 pass. See the M4 box.
-10. **Then M5**: improve the forest with real labeled data once it exists. Until then it can only reproduce the rule scorer (D34). Also revisit the M4 weak spots listed in the M4 box.
-11. **Deploy Stage 1** to Vercel + Netlify (local check passed Session 7). Then commit everything to git — **nothing is committed yet.**
+10. ~~**Commit everything to git**~~ **DONE (Session 8).** 47 files, commit `8ba5ef2`. Verified by rebuilding from a clean clone. Not yet pushed to GitHub.
+11. **Push to GitHub**, then deploy Stage 1 to Vercel + Netlify (D26 hosting split still assumed, open question 4).
 
 **Update (Session 3):** a full phase plan (A to G) is at the end of the Session 3 entry.
 
@@ -842,3 +842,23 @@ Rule: finish and confirm one phase before starting the next, except that the mod
 - The first persona test run failed because I typed budget and storage labels by hand. The frozen config's labels contain double spaces and display wording ("Light  (64GB is enough)"), so the test now derives every label from the config instead of hardcoding strings that could drift.
 **State at the end:** M1, M2, M3, M4 DONE. Stage 1 built and verified locally on both sides. Still not deployed, still not committed to git.
 **Next steps:** 1) Deploy Stage 1 to Vercel + Netlify. 2) **Commit everything to git** — four sessions of work is uncommitted. 3) M5, once there is real labeled data; until then the forest can only reproduce the rule scorer (D34). 4) M6 with 20+ personas. 5) M7 as a FastAPI warm container, never a serverless function (D35).
+### Session 8: 2026-10-01
+
+**Agent/model:** Cline
+**Goal of the session:** Commit the four sessions of uncommitted work, and prove the commit is actually complete by rebuilding from a clean clone.
+**What was done:**
+- **Committed 47 files to `main`** (commit `8ba5ef2`). This was the first commit in the repo; four sessions of work existed only on disk. Verified before committing: `node_modules`, `.env.local`, and the 42MB `ml_model.joblib` were all correctly excluded, and a grep for keys/tokens/secrets across every staged file found only comments and npm integrity hashes.
+- Caught that `__pycache__` bytecode would have been committed (12 `.pyc` files) — added `__pycache__/`, `*.py[cod]`, and venv patterns to `.gitignore`, then deleted the existing bytecode.
+- **Proved the commit is complete by cloning it fresh** (`git clone . /tmp/clonecheck`) rather than trusting that it looked fine in place. This found a real gap: `test_personas.py` failed immediately on a clean clone with `FileNotFoundError: ml_model.joblib`, because the artifact is git-ignored but nothing documented that it must be rebuilt first. A new contributor would have hit this on day one.
+- Confirmed the documented rebuild path actually works: `train_model.py` reads the **committed** `training_data.csv`, needs no network, and regenerates the 41MB artifact. Then re-ran the persona suite from the clean clone: **10/10 pass, exit 0.**
+- Documented the post-clone rebuild step in `model/legacy/README.md`, and corrected that file's stale claim that "v1 of the shop uses the transparent scorer" — untrue since D34. It now states the forest ships, that `scoring.py` is still required for reasons and ratings, and that the quality ceiling stays the rule scorer.
+**Decisions made:** none new. No new decision was needed; this session only committed and hardened what already existed.
+**Problems or errors:**
+- `__pycache__` staged by accident — caught during the pre-commit inspection, fixed in `.gitignore`, and the bytecode deleted before committing.
+- The clean-clone failure above. Root cause: an unstated precondition, not a missing file. Fixed by documenting it rather than by committing a 42MB binary.
+**State at the end:** M1, M2, M3, M4 DONE and **committed**. Stage 1 built and verified locally, also committed, still not deployed. Working tree clean, nothing pushed to GitHub yet.
+**Next steps:**
+1) Push to GitHub (`git push -u origin main`) — the owner has a remote configured and it is still unpushed.
+2) Deploy Stage 1 to Vercel + Netlify (D8/D9 assumed; confirm the split, open question 4).
+3) M5, which is blocked on something real: there is still no labeled data, so the forest can only reproduce the rule scorer (D34). M5 needs team-labeled personas, then real feedback and orders, before it can improve on the rules at all.
+4) M6 with 20+ personas and an agreed acceptable-answer set.
