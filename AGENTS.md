@@ -48,9 +48,9 @@ The shop also includes:
 
 ## 3. Status board
 
-**Last updated:** 2026-10-02 (Session 16)
+**Last updated:** 2026-10-02 (Session 17)
 
-**Current phase:** Model track **M1–M4 and M7 DONE, and the model service is now deployable** (containerised, Session 16). Shop track: Stages 2–5, 7, 9 done and **committed + pushed to GitHub**; Stage 1 verified locally; Stage 6 code complete but owner auth setup remains; Stage 8 code was committed in Session 16 but not end-to-end verified; Stage 10 core flow works but logging and feedback remain; Stage 11 not started. The local home, catalog and model chain all work (63 products, correct out-of-stock display, ranked results in ~1.6s). **Nothing deployed to Vercel/Netlify/Render yet.** Rough estimate: about **80% of local functionality** and **45% of launch readiness**; milestone estimates, not measured coverage.
+**Current phase:** Model track **M1–M4 and M7 DONE, and the model service is now deployable** (containerised, Session 16). Shop track: Stages 2–5, 7, 9 done and **committed + pushed to GitHub**; Stage 1 verified locally; Stage 6 code complete but owner auth setup remains; Stage 8 code was committed in Session 16 but not end-to-end verified; Stage 10 core flow works but logging and feedback remain; Stage 11 not started. The local home, catalog and model chain all work (63 products, correct out-of-stock display, ranked results in ~1.6s). UI now uses a green/terracotta palette and has Chromium responsive checks from 320 to 1440px; Firefox/WebKit could not launch because system libraries are missing. **Nothing deployed to Vercel/Netlify/Render yet.** Rough estimate: about **80% of local functionality** and **45% of launch readiness**; milestone estimates, not measured coverage.
 
 | Item | Status |
 |---|---|
@@ -62,6 +62,7 @@ The shop also includes:
 | **Deployability** | **FIXED (Session 16).** `model/service/Dockerfile` trains the model at build time; `backend/model_data/` ships the two runtime data files; README has exact steps for all three services. **Verified by building from a clean copy.** **Model compressed to 13.5 MB (was 41 MB), loads 0.93s (was 18.4s)** |
 | Repo on GitHub | **YES — `main` pushed, latest `4ebcbda`** (first time in 15 sessions) |
 | Shop Stage 1 | **Built and VERIFIED locally (Session 7).** Next.js 16.3.8 serves the page, backend CORS returns the right origin. Not deployed yet |
+| UI and responsiveness | **UPDATED (Session 17).** Blue replaced with deep green + restrained terracotta and neutral surfaces. Home, catalog, questionnaire, cart and checkout checked in Chromium at mobile/tablet/desktop widths; cart overflow fixed. Firefox/WebKit downloads completed, but launch is blocked by missing host libraries |
 | Code written | Yes: backend (Node/Express) + frontend (Next.js) + **model service (FastAPI, containerised)** + `API_CONTRACT.md`, `README.md` |
 | Agent role | Agent writes the code, owner reviews and runs it (D25) |
 | Accounts created (Supabase, Mailgun, Google Cloud, Vercel, Netlify) | Supabase and Mailgun **live and working**. Google Cloud **not set up** (blocks Google sign-in). Vercel/Netlify/Render **not connected to the repo yet** |
@@ -71,7 +72,16 @@ The shop also includes:
 1. **OWNER: deploy, in this order** (README "Deploying" has the exact clicks):
    **(a) Model service first** — Render, Docker, `model/service/Dockerfile`. Use a **paid/trial instance, NOT the free tier**: it sleeps 30–60s, longer than Netlify's 10s function limit. **(b) Backend** — Netlify, base directory `backend`, set `MODEL_SERVICE_URL` + `ALLOWED_ORIGINS` + the Supabase/Mailgun keys. **(c) Frontend** — Vercel, root directory `frontend`, set `NEXT_PUBLIC_API_URL=https://<netlify-site>/api` and the two `NEXT_PUBLIC_SUPABASE_*` values.
    Code is on GitHub (`main` = `4ebcbda`), so all three can be connected now.
-2. **OWNER ACTION, BLOCKING Google sign-in** (Session 13). Two Supabase dashboard steps, no code: enable the Google provider with the Client ID/Secret, and add `https://<vercel-domain>/auth/callback` to the Redirect URLs. Then set `profiles.role = 'admin'` for the first admin.
+2. **OWNER ACTION, THE ONLY THING BLOCKING GOOGLE SIGN-IN.** Verified against
+   the live project: `GET /auth/v1/settings` reports `"google": false`, and
+   `GET /auth/v1/authorize` answers **400 `Unsupported provider: provider is not
+   enabled`**. So the code is complete and correct, and one dashboard switch is
+   the whole gap. Run `./scripts/check-google-auth.sh` to see the state and the
+   fix; it queries Supabase directly rather than trusting the UI.
+   Then: Supabase → Authentication → Providers → Google → **ON** + Client ID and
+   Secret; add `https://<vercel-domain>/auth/callback` (and
+   `http://localhost:3000/auth/callback`) to Redirect URLs; set
+   `profiles.role = 'admin'` for the first admin.
 3. **Verify the deployed recommendation chain** with the three curl commands at the end of README "Deploying". A "model not available" response means `MODEL_SERVICE_URL` is wrong or the model service is asleep.
 4. **Stage 10's remaining gaps:** `recommendation_sessions` logging and the "Was this helpful?" feedback buttons (feature 11).
 5. **Rotate the Supabase DB password and the Mailgun private key.** Both are in the chat history.
@@ -133,6 +143,7 @@ Status: **Confirmed** means the owner said it. **Assumed** means an agent chose 
 | D38 | Identity is decided ONLY by the verified Supabase token plus the `profiles.role` column. A role in a request body or in a JWT claim is ignored. Token verification uses the **publishable** key on purpose: using the secret key would make the auth path depend on a privileged credential, and a missing one would silently sign everyone out instead of failing loudly. The first admin is promoted by hand, so admin is never self-assignable at signup | Confirmed (Session 13) |
 | D39 | Sign-in offers **both** Google and email+password as equal choices, not one with the other as a fallback. The owner asked for a non-Google path explicitly. This means email confirmation must stay ON: it is the only thing stopping a stranger creating a usable account with somebody else's address (measured in Session 13). `mailer_autoconfirm` is now a locked setting | Confirmed (Session 13, owner request) |
 | D40 | The Supabase `sb_publishable_` key is treated as public, not as a secret. It is designed to be in the browser bundle and its power is bounded by RLS; sign-in cannot work without it. Only `sb_secret_` is a leak. `scripts/check-for-secrets.sh` was narrowed to match, after verifying the bundle held no secret key — and re-verified by planting a real fake `sb_secret_` in a tracked file and in the build output, both of which still fail the build | Assumed (Session 13, verified) |
+| D41 | Storefront palette uses deep green `#16745d` as the primary, darker green `#105b49` for emphasis, pale green/terracotta tints on neutral surfaces, and coral `#e97859` only as a decorative accent. The green/coral hues are near-complementary; white on the primary is 5.69:1, while coral on white is 2.88:1 and therefore is not used for small text | Assumed (Session 17, based on Material color-role guidance and WCAG contrast) |
 
 When a decision changes, add a new row. Do not delete old rows. Mark the old one "Replaced by D#".
 
@@ -1467,3 +1478,12 @@ a copy of `backend/` with `model/` **deleted entirely** — the deployed situati
 since Netlify uses base directory `backend` — still served `GET /questionnaire`
 from the bundled `model_data` copy and listed all **63 products** from the CSV
 fallback. That is exactly the failure mode Session 16 fixed, confirmed fixed.
+
+### Session 17: 2026-10-02
+**Agent/model:** GitHub Copilot
+**Goal of the session:** Refresh the storefront UI, replace the light-blue palette with a researched color scheme, and improve responsiveness across screen sizes and browser engines.
+**What was done:** Replaced blue/indigo accents with a role-based palette: deep green primary, darker green emphasis, pale green and terracotta-tinted surfaces, and neutral backgrounds. The green/coral pair is near-complementary; WCAG contrast measured 5.69:1 for white on primary green and 8.03:1 on dark green. Coral on white measured 2.88:1, so it remains decorative and is not used for small text. Fixed mobile header action wrapping, changed price filters to two columns on narrow screens, and set the cart to one column below desktop after detecting a 467px cart layout on a 375px viewport. Chromium checks covered home, catalog, questionnaire, cart and checkout at 320, 375, 768 and 1280px with no horizontal overflow after the fix; the catalog was also checked at 360, 430, 1024 and 1440px. `npm run build` and the secret scanner passed. Updated browser screenshot confirms the new mobile home UI.
+**Decisions made:** D41 (assumed storefront palette and color-role use).
+**Problems or errors:** Firefox and WebKit downloads completed, but automated launch is blocked by missing host libraries (`libasound2t64` for Firefox and GTK/GStreamer and other libraries for WebKit). No elevated system package installation was attempted. The built-in browser checks ran in Chromium only.
+**State at the end:** Updated UI is locally available; production build passes. The working tree also contains the owner's unrelated, uncommitted Stage 8 admin-orders changes; they were left untouched. No public deployment.
+**Next steps:** If cross-engine certification is needed, install the Playwright host dependencies with an administrator. Continue the existing deployment/auth tasks; no further UI work is required for this request.

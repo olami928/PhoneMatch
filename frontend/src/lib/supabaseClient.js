@@ -88,8 +88,46 @@ export async function signInWithGoogle() {
     },
   });
 
-  if (error) return { error };
-  return { error: null };
+  if (!error) return { error: null };
+
+  // Translate the two failures that are OUR setup being incomplete into advice
+  // that says what to actually do, because the raw Supabase text ("Unsupported
+  // provider: provider is not enabled") means nothing to a shopper or, worse,
+  // looks like the shop is broken.
+  //
+  // Both are verified against the live Supabase project:
+  //   - provider not enabled: GET /auth/v1/settings showed "google": false
+  //   - redirect not allowed: 400 from /auth/v1/authorize
+  const raw = error.message || "";
+  const lower = raw.toLowerCase();
+
+  if (lower.includes("provider is not enabled") || lower.includes("unsupported provider")) {
+    return {
+      error: {
+        message:
+          "Google sign-in is not switched on yet for this shop. Please use email and password, or continue as a guest.",
+        setupProblem: "google_provider_disabled",
+      },
+    };
+  }
+
+  if (
+    lower.includes("redirect") ||
+    lower.includes("url") ||
+    lower.includes("not allowed")
+  ) {
+    return {
+      error: {
+        message:
+          "This sign-in page address is not in the shop's allowed list. Please use email and password, or continue as a guest.",
+        setupProblem: "redirect_url_not_allowed",
+      },
+    };
+  }
+
+  // Anything else is passed through unchanged: a blocked popup or a dropped
+  // connection is a real transient problem the shopper can simply retry.
+  return { error };
 }
 
 export async function signOut() {
