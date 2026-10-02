@@ -65,7 +65,7 @@ export default function CartPage() {
             </div>
           </div>
         ) : (
-          <div className="mt-6 grid gap-6 md:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
             <div className="md:col-span-2">
               <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200">
                 {items.map((item) => (

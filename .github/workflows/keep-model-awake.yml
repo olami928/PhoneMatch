@@ -1,0 +1,50 @@
+name: Keep the model service awake
+
+# WHY THIS EXISTS
+#
+# The owner cannot use any paid hosting, so the model service runs on Render's
+# FREE tier. Free web services spin down after ~15 minutes of inactivity and take
+# roughly 30-60s to wake. The Netlify function that calls it has a ~10s limit, so
+# a shopper arriving after a quiet period would get an error instead of a
+# recommendation.
+#
+# This workflow pings the model service every 10 minutes, which is inside the
+# sleep window, so the container stays warm and real requests are answered in
+# well under a second.
+#
+# This costs nothing: GitHub Actions includes a free monthly allowance for
+# private repositories, and a 10-minute cron that makes one HTTP request is a
+# negligible fraction of it.
+#
+# SETUP (once): in the GitHub repo go to
+#   Settings -> Secrets and variables -> Actions -> New repository secret
+#   Name: MODEL_SERVICE_URL
+#   Value: https://your-model-service.onrender.com
+# without a trailing slash.
+
+on:
+  schedule:
+    # Every 10 minutes. GitHub queues scheduled runs and may delay them under
+    # load, which is acceptable: this is a best-effort warm-up, not a guarantee.
+    - cron: "*/10 * * * *"
+  # Also ping on demand, so the warm-up can be forced manually if needed.
+  workflow_dispatch:
+
+jobs:
+  keep-awake:
+    name: Ping the model service
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the model is awake
+        env:
+          MODEL_SERVICE_URL: ${{ secrets.MODEL_SERVICE_URL }}
+        run: |
+          if [ -z "$MODEL_SERVICE_URL" ]; then
+            echo "MODEL_SERVICE_URL is not set. Add it in Settings -> Secrets -> Actions."
+            exit 0
+          fi
+
+          echo "Pinging ${MODEL_SERVICE_URL} to keep it warm..."
+          curl --silent --show-error --fail --max-time 60 \
+            "${MODEL_SERVICE_URL}/health" \
+            --write-out "\nHTTP %{http_code} in %{time_total}s\n"

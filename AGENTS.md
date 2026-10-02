@@ -1372,10 +1372,10 @@ uncommitted Stage 8 admin-orders work. 10/10 personas pass, frontend build passe
 with all 18 routes, secret scan clean, full local chain answers in 1.6s. **Nothing
 deployed yet** — the three deploys need the owner's accounts.
 **Next steps:**
-1. **OWNER: deploy in order** — model service (Render, Docker, **paid/trial
-   instance, not free tier**), then backend (Netlify, base dir `backend`), then
-   frontend (Vercel, root dir `frontend`). README "Deploying" has every click and
-   env var.
+1. **OWNER: deploy in order** — model service (Render, Docker, **Free plan** — no
+   payment needed), then backend (Netlify, base dir `backend`), then frontend
+   (Vercel, root dir `frontend`). README "Deploying" has every click and env var.
+   Set the `MODEL_SERVICE_URL` GitHub secret so the keep-awake ping works.
 2. **OWNER: Google sign-in** — enable the provider in Supabase and add the Vercel
    redirect URL. No code needed; the code is complete.
 3. Verify the deployed chain with the curl commands in README.
@@ -1411,9 +1411,46 @@ a broken model — confirmed by re-reading the log, which printed "13.5 MB".
 
 D35 is unchanged as a decision; the model is still deployed as a warm container,
 which remains the more reliable design. But the size limit that originally forced
-it is no longer near its limit, so the free-tier Render instance is no longer
-hopeless: a paid instance is still recommended because a cold *container* must
-boot before it can answer.
+it is no longer near its limit, so a free-tier Render instance is viable: a paid
+instance is optional, not required.
+
+**Session 16d — free-only hosting (the owner cannot pay for anything).**
+
+Measured the constraints rather than assuming:
+
+| Measurement | Value | Why it matters |
+|---|---|---|
+| Peak RSS after import, load and predict | **231 MB** | Fits Render free's 512 MB |
+| Model load alone | **1.11s** | The rest (7.27s) is sklearn/pandas import, unavoidable in Python |
+| Forest as JSON | 19.5 MB, 300 trees, 587,790 nodes | Exported via `model/src/export_trees.py` |
+
+**The real problem was never the model — it was the free tier's sleep.** Render's
+free web services spin down after ~15 min idle and take 30-60s to wake, which is
+longer than the Netlify function's ~10s limit. So the first shopper after a quiet
+period would have failed. Solved with two layers, neither needing money:
+
+1. `.github/workflows/keep-model-awake.yml` pings `/health` every 10 minutes, so
+   the container never sleeps. Needs one repository secret, `MODEL_SERVICE_URL`.
+   GitHub Actions has a free allowance and a 10-minute cron making one HTTP
+   request is a negligible fraction of it.
+2. If it is asleep anyway, the backend answers `502` **with `warming_up: true`**
+   and fires a non-awaited ping at the container on the way out, and
+   `postRecommendWithRetry` in the frontend retries (1.5s, 2.5s, 3s, capped
+   under the function's 10s wall). Verified the whole cycle by killing the model:
+   the request returned `warming_up: true`, then succeeded once it was back.
+
+The retry only fires on `warming_up`, so a genuinely bad answer still fails fast
+instead of making a shopper wait for nothing.
+
+A bug was caught while wiring this up: `apiFetch` threw a plain `Error` and so
+dropped the `warming_up` flag on the floor. The retry would then never have
+triggered, and would have looked like it worked because the happy path was
+untouched.
+
+`export_trees.py` was written during this investigation, when the question was
+whether a free tier could run the model at all. **It is not wired into anything**
+and is kept only because it makes the forest inspectable without Python. It is
+not on the deployment path, and should not be mistaken for part of it.
 
 **Session 16c — deploy login.**
 

@@ -520,9 +520,23 @@ app.post("/recommend", async (req, res) => {
     // The model service being down must not look like a shopper mistake, so
     // this is a 502 with an honest message rather than a 400.
     console.error("model service unreachable:", err.message);
+
+    // The model service runs on a FREE hosting tier, which spins down after ~15
+    // minutes of inactivity and needs 30-60s to wake. This backend function
+    // cannot wait that long, so the very first shopper after a quiet period
+    // would otherwise just see an error. Kicking the container here means their
+    // retry a few seconds later succeeds instead of failing twice.
+    //
+    // Deliberately NOT awaited: this is fire-and-forget, so it adds no latency
+    // to the error response. A failure is ignored, because the ping is only ever
+    // an optimisation — the recommendation itself is still unavailable.
+    fetch(`${MODEL_SERVICE_URL}/health`, { signal: AbortSignal.timeout(3000) })
+      .catch(() => {});
+
     res.status(502).json({
       error:
-        "Our recommendation model is not available right now. Please try again in a moment.",
+        "Our recommendation model is waking up. Please try again in a few seconds.",
+      warming_up: true,
     });
   }
 });

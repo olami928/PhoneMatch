@@ -23,6 +23,11 @@ Thumbs.db
 # Large regeneratable model artifact (42MB) - rebuild with model/legacy/src/train_model.py
 *.joblib
 
+# Forest exported to JSON by model/src/export_trees.py (19.5MB). Generated and
+# regeneratable, and nothing on the deployment path reads it, so it stays out of
+# the repo rather than being committed 300 times.
+model/src/forest.json
+
 # Python bytecode (regenerated on every run, never useful in the repo)
 __pycache__/
 *.py[cod]

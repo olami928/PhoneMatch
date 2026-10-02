@@ -11,7 +11,7 @@
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
 import ResultList from "../../components/ResultList";
-import { fetchQuestionnaire, postRecommend } from "../../lib/api";
+import { fetchQuestionnaire, postRecommendWithRetry } from "../../lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -63,10 +63,15 @@ export default async function ResultsPage({ searchParams }) {
   }
 
   // The one call that produces the whole point of this project.
+  //
+  // Uses the retrying wrapper rather than the plain call, because the model runs
+  // on free hosting that sleeps when idle. A shopper who arrives just after it
+  // went to sleep would otherwise see an error page; with the retry the page
+  // takes a few seconds longer and then shows their recommendations.
   let result = null;
   let error = null;
   try {
-    result = await postRecommend(answers);
+    result = await postRecommendWithRetry(answers);
   } catch (err) {
     error = err.message;
   }

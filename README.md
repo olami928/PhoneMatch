@@ -79,10 +79,23 @@ not assumed: uncompressed it is 41 MB and takes 18.4s to load, which alone
 blows past a serverless function's time limit. Compression is lossless — the
 top-3 recommendations are identical either way.
 
-Use a **paid or trial instance, not the free tier** if you can. Free sleeps
-after inactivity for 30–60s, longer than the Netlify function's 10s limit, so
-the first shopper after a quiet period would see a failure. The model now starts
-in well under that, but a cold *container* still has to boot first.
+Use the **Free** plan. Nothing here needs a paid service — the model was
+measured at **231 MB peak memory**, which fits Render's 512 MB free limit, and
+its artifact is 13.5 MB after compression (loads in 0.93s, versus 41 MB and
+18.4s uncompressed).
+
+The free tier does spin down after ~15 minutes of inactivity and needs 30-60s to
+wake, which is longer than the Netlify function's ~10s limit. That is handled
+automatically and needs no paid upgrade:
+
+- `.github/workflows/keep-model-awake.yml` pings `/health` every 10 minutes, so
+  the container never actually sleeps. Set the `MODEL_SERVICE_URL` repository
+  secret once (see the comment at the top of that file).
+- If the service is somehow asleep, the backend returns `warming_up: true` and
+  pings the container on the way out, and the frontend retries automatically.
+  The shopper sees a page that takes a few seconds longer, not an error.
+
+A paid instance is optional if you want it, but it is not required.
 
 Copy the deploy URL, e.g. `https://phonematch-model.onrender.com`.
 

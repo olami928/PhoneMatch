@@ -50,9 +50,19 @@ export async function apiFetch(path, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(
+    const error = new Error(
       (body && body.error) || `The backend answered with status ${response.status}.`
     );
+    // Carry the backend's `warming_up` flag onto the Error.
+    //
+    // The backend sets this when the model service is asleep on a free hosting
+    // tier (see postRecommendWithRetry), and it is the ONLY way the caller can
+    // tell "wait a moment and it will work" apart from "this request is simply
+    // wrong". Without it the retry logic cannot tell the two apart and would
+    // either give up too early or make a doomed request wait.
+    error.warmingUp = Boolean(body && body.warming_up);
+    error.status = response.status;
+    throw error;
   }
   return body;
 }
@@ -199,6 +209,45 @@ export async function postRecommend(answers) {
     method: "POST",
     body: JSON.stringify(answers),
   });
+}
+
+// Asks the backend to rank phones, retrying while the model service wakes up.
+//
+// WHY A RETRY EXISTS HERE: the model service runs on a free hosting tier that
+// spins down after ~15 minutes idle and needs 30-60s to wake. The backend cannot
+// wait that long, so the very first request after a quiet period gets a 502 with
+// `warming_up: true` — and the backend pings the container on the way out, so the
+// service is already booting by the time we retry.
+//
+// Without this, a shopper who arrived at the right moment would see an error
+// page and have to press refresh themselves. With it, the page simply takes a few
+// seconds longer. Total budget is kept under ~9s, because the serverless function
+// hosting the backend has its own ~10s wall and a retry that overran it would
+// turn a friendly wait into a hard failure.
+const WARMUP_ATTEMPTS = 4;
+const WARMUP_DELAYS_MS = [1500, 2500, 3000];
+
+export async function postRecommendWithRetry(answers) {
+  let lastError;
+
+  for (let attempt = 0; attempt <= WARMUP_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      const delay = WARMUP_DELAYS_MS[Math.min(attempt - 1, WARMUP_DELAYS_MS.length - 1)];
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
+    try {
+      return await postRecommend(answers);
+    } catch (err) {
+      lastError = err;
+      // Only a waking model is worth retrying. A bad answer or a bug will fail
+      // identically every time, and retrying would just make the shopper wait
+      // for nothing.
+      if (!err || !err.warmingUp) throw err;
+    }
+  }
+
+  throw lastError;
 }
 
 // --- Stage 8: admin orders ---------------------------------------------------
