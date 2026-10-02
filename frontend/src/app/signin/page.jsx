@@ -95,7 +95,7 @@ export default function SignInPage() {
             >
               {/* Google's brand guidelines ask for the official "G" mark. Drawn
                   simply here; replace with the official SVG before launch. */}
-              <span aria-hidden="true" className="text-base font-semibold text-blue-600">
+              <span aria-hidden="true" className="text-base font-semibold text-brand-strong">
                 G
               </span>
               {busy ? "Opening Google..." : "Continue with Google"}

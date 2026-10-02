@@ -68,16 +68,21 @@ cd backend && npm run check:model-data   # fails if the bundled data copies drif
 Render: New → Web Service → connect the repo → **Docker** → Dockerfile path
 `model/service/Dockerfile` → Environment `Python`.
 
-The Dockerfile **trains the model during the build** (~30s). This is deliberate:
-`ml_model.joblib` is 41 MB and git-ignored, so a service built from a plain clone
-has no model at all and dies with `FileNotFoundError` on startup. The build step
-reads the committed `training_data.csv`, needs no network, and fails loudly rather
+The Dockerfile **trains the model during the build** (~27s). This is deliberate:
+`ml_model.joblib` is git-ignored, so a service built from a plain clone has no
+model at all and dies with `FileNotFoundError` on startup. The build step reads
+the committed `training_data.csv`, needs no network, and fails loudly rather
 than shipping a dead image.
 
-Use a **paid or trial instance, not the free tier**. The free tier sleeps after
-inactivity and takes ~30–60s to wake, which is longer than the Netlify function's
-10s limit, so the first shopper after a quiet period would see a failure. This is
-the D35 constraint: it must be a warm, long-lived process.
+The model is saved **compressed** (13.5 MB, loads in 0.93s). That was measured,
+not assumed: uncompressed it is 41 MB and takes 18.4s to load, which alone
+blows past a serverless function's time limit. Compression is lossless — the
+top-3 recommendations are identical either way.
+
+Use a **paid or trial instance, not the free tier** if you can. Free sleeps
+after inactivity for 30–60s, longer than the Netlify function's 10s limit, so
+the first shopper after a quiet period would see a failure. The model now starts
+in well under that, but a cold *container* still has to boot first.
 
 Copy the deploy URL, e.g. `https://phonematch-model.onrender.com`.
 

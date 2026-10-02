@@ -16,8 +16,8 @@
 /** Tones for the status pill, kept here so every screen colours them alike. */
 export const STATUS_TONE = {
   Pending: "bg-amber-100 text-amber-800",
-  Paid: "bg-blue-100 text-blue-800",
-  Packed: "bg-indigo-100 text-indigo-800",
+  Paid: "bg-emerald-100 text-emerald-800",
+  Packed: "bg-amber-100 text-amber-800",
   Shipped: "bg-violet-100 text-violet-800",
   Delivered: "bg-green-100 text-green-800",
   Cancelled: "bg-slate-200 text-slate-700",

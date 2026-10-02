@@ -49,7 +49,7 @@ export default async function PhonesPage({ searchParams }) {
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
         <div className="rounded-[28px] border border-slate-200 bg-white/85 p-5 shadow-sm shadow-slate-200/50">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-brand-strong">
             Shop catalog
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Shop all phones</h1>
@@ -58,13 +58,13 @@ export default async function PhonesPage({ searchParams }) {
           </p>
         </div>
 
-        <nav aria-label="Filter by price" className="mt-5 flex flex-wrap gap-2">
+        <nav aria-label="Filter by price" className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Link
             href="/phones"
             className={
               !params.min_price && !params.max_price
-                ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm"
-                : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                ? "min-w-0 whitespace-nowrap rounded-full bg-slate-900 px-2.5 py-2 text-center text-xs font-medium text-white shadow-sm sm:px-3 sm:py-1.5 sm:text-sm"
+                : "min-w-0 whitespace-nowrap rounded-full border border-slate-300 bg-white px-2.5 py-2 text-center text-xs font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50 sm:px-3 sm:py-1.5 sm:text-sm"
             }
           >
             All
@@ -79,8 +79,8 @@ export default async function PhonesPage({ searchParams }) {
                 href={`/phones?min_price=${band.min}&max_price=${band.max}`}
                 className={
                   active
-                    ? "rounded-full bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm shadow-blue-200"
-                    : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                    ? "min-w-0 whitespace-nowrap rounded-full bg-brand px-2.5 py-2 text-center text-xs font-medium text-white shadow-sm shadow-emerald-900/10 sm:px-3 sm:py-1.5 sm:text-sm"
+                    : "min-w-0 whitespace-nowrap rounded-full border border-slate-300 bg-white px-2.5 py-2 text-center text-xs font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50 sm:px-3 sm:py-1.5 sm:text-sm"
                 }
               >
                 {band.label}
@@ -107,7 +107,7 @@ export default async function PhonesPage({ searchParams }) {
             </p>
             <Link
               href="/phones"
-              className="mt-4 inline-block rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              className="mt-4 inline-block rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-strong"
             >
               Clear the filter
             </Link>

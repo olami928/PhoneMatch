@@ -112,14 +112,14 @@ export default function Questionnaire({ questions }) {
           className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-200"
         >
           <div
-            className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all"
+            className="h-full rounded-full bg-gradient-to-r from-brand to-brand-strong transition-all"
             style={{ width: `${((step + 1) / total) * 100}%` }}
           />
         </div>
       </div>
 
       <div className="mb-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-strong">
           Smart match
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
@@ -138,7 +138,7 @@ export default function Questionnaire({ questions }) {
                 key={option.label}
                 className={
                   isSelected
-                    ? "flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-blue-600 bg-blue-50 p-3.5 shadow-sm shadow-blue-100"
+                    ? "flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-brand bg-brand-soft p-3.5 shadow-sm shadow-emerald-900/10"
                     : "flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 transition hover:border-slate-300 hover:bg-white"
                 }
               >
@@ -148,7 +148,7 @@ export default function Questionnaire({ questions }) {
                   value={option.label}
                   checked={isSelected}
                   onChange={() => choose(option)}
-                  className="h-4 w-4 accent-blue-600"
+                  className="h-4 w-4 accent-brand"
                 />
                 <span className="text-sm font-medium text-slate-800">{option.label}</span>
               </label>
@@ -168,7 +168,7 @@ export default function Questionnaire({ questions }) {
         {showAction && (
           <button
             onClick={next}
-            className="ml-auto rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 transition hover:bg-blue-700"
+            className="ml-auto rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 transition hover:bg-brand-strong"
           >
             {isLast ? "See my phones" : "Next"}
           </button>

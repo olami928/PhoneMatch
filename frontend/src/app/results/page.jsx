@@ -79,7 +79,7 @@ export default async function ResultsPage({ searchParams }) {
         <div className="rounded-[28px] border border-slate-200 bg-white/85 p-5 shadow-lg shadow-slate-200/60 sm:p-7">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-strong">
                 Recommended for you
               </p>
               <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">

@@ -1,18 +1,24 @@
 # Model service container (M7 deployment).
 #
-# WHY THE MODEL IS TRAINED INSIDE THIS IMAGE: `ml_model.joblib` is 41 MB and is
-# deliberately git-ignored (.gitignore), because it is regeneratable and would
-# bloat every clone. That means a fresh deploy from git has NO model file, and
-# `ml_recommender.py` loads it at import time — so without this Dockerfile the
-# service crashes on startup with FileNotFoundError and every shopper sees
-# "our recommendation model is not available".
+# WHY THE MODEL IS TRAINED INSIDE THIS IMAGE: `ml_model.joblib` is git-ignored
+# (.gitignore) because it is regeneratable and would bloat every clone. A service
+# built from a plain clone therefore has NO model file, and ml_recommender.py
+# loads it at import time, so without a build step the service dies on startup
+# with FileNotFoundError and every shopper sees "our recommendation model is not
+# available".
 #
-# The fix is to build the artifact at image build time. It only takes ~16s and
-# needs no network: train_model.py reads the COMMITTED training_data.csv.
-# That keeps the repo small and makes a deploy self-contained and reproducible.
+# Training runs here (~27s, no network: train_model.py reads the COMMITTED
+# training_data.csv), which keeps the repo small and the deploy reproducible. It
+# saves compressed, which is what makes the service fast enough to host: the
+# artifact is 13.5 MB and loads in 0.93s, versus 41 MB and 18.4s uncompressed.
+# Compression is lossless and the top-3 recommendations are identical either way.
 #
-# D35 (hard constraint): this MUST be a long-lived container. A serverless
-# function cannot hold the warm 41 MB model in memory.
+# D35 still applies in spirit: this is a long-lived container, not a serverless
+# function. The 13.5 MB artifact now fits comfortably in a serverless bundle too,
+# but keeping the model warm in memory is still the faster, more reliable design.
+#
+# If you ever change the training data or the forest, this build retrains, so the
+# deployed model can never drift from the committed data.
 
 FROM python:3.12-slim
 
@@ -41,6 +47,7 @@ RUN python /app/model/legacy/src/train_model.py \
 
 EXPOSE 8000
 
-# Model startup includes the 41 MB load, so the container needs a real grace
-# period before uvicorn answers. Without this, a slow cold start gets killed.
-CMD ["sh", "-c", "uvicorn main:app --app-dir /app/model/service --host 0.0.0.0 --port ${PORT:-8000}"]
+# --workers 1 on purpose: uvicorn would otherwise fork several processes that each
+# load their own 13.5 MB copy of the model, wasting memory for no speed gain. The
+# model is fast enough that one worker serves the shop comfortably.
+CMD ["sh", "-c", "uvicorn main:app --app-dir /app/model/service --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]

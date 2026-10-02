@@ -87,7 +87,7 @@ export default function ResultList({ result }) {
             className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/50"
           >
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-sm font-bold text-blue-700">
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-soft to-accent-soft text-sm font-bold text-brand-strong">
                 {pick.rank}
               </span>
 
@@ -95,7 +95,7 @@ export default function ResultList({ result }) {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Link
                     href={`/phones/${pick.product_id}`}
-                    className="text-lg font-semibold text-slate-900 hover:text-blue-700"
+                    className="text-lg font-semibold text-slate-900 hover:text-brand-strong"
                   >
                     {pick.brand} {pick.model}
                   </Link>
@@ -112,7 +112,7 @@ export default function ResultList({ result }) {
                   <ul className="mt-2 space-y-1.5">
                     {pick.reasons.map((reason) => (
                       <li key={reason} className="flex items-start gap-2 text-sm text-slate-700">
-                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600" />
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
                         <span>{reason}</span>
                       </li>
                     ))}
@@ -124,7 +124,7 @@ export default function ResultList({ result }) {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     onClick={() => handleAdd(pick)}
-                    className="rounded-full bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                    className="rounded-full bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-brand-strong"
                   >
                     {addedId === pick.product_id ? "Added to cart" : "Add to cart"}
                   </button>

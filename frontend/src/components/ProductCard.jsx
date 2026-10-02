@@ -37,7 +37,7 @@ export default function ProductCard({ product }) {
   }
 
   return (
-    <article className="group flex flex-col rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm shadow-slate-200/50 transition hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-100/60">
+    <article className="group flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm shadow-slate-200/50 transition hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-900/10">
       <Link href={`/phones/${product.product_id}`} className="block overflow-hidden rounded-xl">
         {product.image ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -53,10 +53,10 @@ export default function ProductCard({ product }) {
       </Link>
 
       <div className="mt-3 flex flex-1 flex-col">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
           <Link
             href={`/phones/${product.product_id}`}
-            className="text-base font-semibold text-slate-900 hover:text-blue-700"
+            className="min-w-0 break-words text-base font-semibold text-slate-900 hover:text-brand-strong"
           >
             {product.name}
           </Link>
@@ -81,7 +81,7 @@ export default function ProductCard({ product }) {
           ) : (
             <button
               onClick={handleAdd}
-              className="w-full rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+              className="w-full rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-strong"
             >
               {added ? "Added to cart" : "Add to cart"}
             </button>

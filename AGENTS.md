@@ -59,7 +59,7 @@ The shop also includes:
 | Usability test | Simulated only. Real test with 3 people still needed (Stage 11) |
 | Existing model | **Audited (M1, Session 4).** Python 3.12, transparent weighted scorer + a Random Forest distilled from it. Lives in `model/legacy/`. No real labeled data |
 | Model rework | M1–M4 done. Random Forest ships (D34). `model/data/phones.csv` (63 phones, 0 missing), `shop_recommender.recommend()`, 10/10 personas pass. Next: M5 |
-| **Deployability** | **FIXED (Session 16).** `model/service/Dockerfile` trains the model at build time; `backend/model_data/` ships the two runtime data files; README has exact steps for all three services. **Verified by building from a clean copy** |
+| **Deployability** | **FIXED (Session 16).** `model/service/Dockerfile` trains the model at build time; `backend/model_data/` ships the two runtime data files; README has exact steps for all three services. **Verified by building from a clean copy.** **Model compressed to 13.5 MB (was 41 MB), loads 0.93s (was 18.4s)** |
 | Repo on GitHub | **YES — `main` pushed, latest `4ebcbda`** (first time in 15 sessions) |
 | Shop Stage 1 | **Built and VERIFIED locally (Session 7).** Next.js 16.3.8 serves the page, backend CORS returns the right origin. Not deployed yet |
 | Code written | Yes: backend (Node/Express) + frontend (Next.js) + **model service (FastAPI, containerised)** + `API_CONTRACT.md`, `README.md` |
@@ -1382,3 +1382,51 @@ deployed yet** — the three deploys need the owner's accounts.
 4. Stage 10's remaining gaps (session logging, feedback buttons), Stage 8
    end-to-end checks, Stage 11.
 5. Rotate the Supabase DB password and the Mailgun private key.
+
+**Session 16b — the model made deployable in a serverless-friendly size.**
+
+The owner asked for the model to work and for the deploys to be simple. Measuring
+the artifact rather than trusting the earlier note produced the key result of the
+session:
+
+| | before | after |
+|---|---|---|
+| `ml_model.joblib` | 41 MB | **13.5 MB** |
+| cold load | 18.4s | **0.93s** |
+| prediction (via backend) | 662ms | **421ms** |
+
+**Why it matters:** 18.4s exceeds the 10s hard wall on a Netlify function by
+nearly double. The old AGENTS.md note said the 41 MB artifact "forces a warm
+container" — that was correct when written, but the real constraint was the
+**uncompressed** size, not the architecture. `joblib.dump(..., compress=3)` is
+lossless, and this was verified rather than assumed: the top-3 recommendations
+came back **identical** (Camon 40 Pro 5G / 66.7, Camon 50 Pro 4G / 66.5, Camon 50
+4G / 66.4) with and without compression.
+
+`train_model.py` now saves compressed permanently, so every future build and
+retrain inherits it. Retrained from the committed `training_data.csv`: artifact
+13.5 MB, and `test_personas.py` still reports **PASS: 10 personas, all hard rules
+held**. A first look showed the file at 317K, which was a mid-write snapshot, not
+a broken model — confirmed by re-reading the log, which printed "13.5 MB".
+
+D35 is unchanged as a decision; the model is still deployed as a warm container,
+which remains the more reliable design. But the size limit that originally forced
+it is no longer near its limit, so the free-tier Render instance is no longer
+hopeless: a paid instance is still recommended because a cold *container* must
+boot before it can answer.
+
+**Session 16c — deploy login.**
+
+Owner asked for the deploys to be done for them. Hosting providers will not
+accept a deploy from an unauthenticated machine, so one browser login each for
+Vercel, Netlify and Render is the only step that cannot be automated away.
+`scripts/deploy-login.sh` does exactly that, in order, using `npx` rather than a
+global install (the npm registry is very slow on this machine and a global
+install added a long wait before the owner could even start). Logins are stored
+in the CLIs' own home directories, never in the repo.
+
+Also verified the Netlify layout under real conditions rather than by inspection:
+a copy of `backend/` with `model/` **deleted entirely** — the deployed situation,
+since Netlify uses base directory `backend` — still served `GET /questionnaire`
+from the bundled `model_data` copy and listed all **63 products** from the CSV
+fallback. That is exactly the failure mode Session 16 fixed, confirmed fixed.
