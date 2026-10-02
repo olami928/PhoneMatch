@@ -48,9 +48,9 @@ The shop also includes:
 
 ## 3. Status board
 
-**Last updated:** 2026-10-01 (Session 15)
+**Last updated:** 2026-10-02 (Session 16)
 
-**Current phase:** Model track **M1–M4 and M7 (service) DONE**. Shop track: **Stages 2–5, 7, and 9 done; Stage 1 is verified locally but not deployed; Stage 6 code is built but owner auth setup remains; Stage 8 is in progress in the uncommitted working tree; Stage 10 core flow works but logging and feedback remain; Stage 11 not started.** The local home and catalog render, with 63 products and correct out-of-stock display. `/admin` remains at "Checking your access". **Nothing deployed to Vercel/Netlify.** Current rough estimate: about **75% of local functionality** and **30% of launch readiness**; these are milestone estimates, not measured test coverage.
+**Current phase:** Model track **M1–M4 and M7 DONE, and the model service is now deployable** (containerised, Session 16). Shop track: Stages 2–5, 7, 9 done and **committed + pushed to GitHub**; Stage 1 verified locally; Stage 6 code complete but owner auth setup remains; Stage 8 code was committed in Session 16 but not end-to-end verified; Stage 10 core flow works but logging and feedback remain; Stage 11 not started. The local home, catalog and model chain all work (63 products, correct out-of-stock display, ranked results in ~1.6s). **Nothing deployed to Vercel/Netlify/Render yet.** Rough estimate: about **80% of local functionality** and **45% of launch readiness**; milestone estimates, not measured coverage.
 
 | Item | Status |
 |---|---|
@@ -59,22 +59,23 @@ The shop also includes:
 | Usability test | Simulated only. Real test with 3 people still needed (Stage 11) |
 | Existing model | **Audited (M1, Session 4).** Python 3.12, transparent weighted scorer + a Random Forest distilled from it. Lives in `model/legacy/`. No real labeled data |
 | Model rework | M1–M4 done. Random Forest ships (D34). `model/data/phones.csv` (63 phones, 0 missing), `shop_recommender.recommend()`, 10/10 personas pass. Next: M5 |
-| Shop Stage 1 | **Built and VERIFIED locally (Session 7).** Next.js 16.3.8 serves the page, fetches `/hello`, backend CORS returns the right origin. Not deployed yet|
-| Code written | Yes: backend (Node/Express) + frontend (Next.js) + **model service (FastAPI)** + `API_CONTRACT.md`, `README.md`. Latest commits `0ca3278` (Stage 3), `b330bf4` (Stage 6) |
+| **Deployability** | **FIXED (Session 16).** `model/service/Dockerfile` trains the model at build time; `backend/model_data/` ships the two runtime data files; README has exact steps for all three services. **Verified by building from a clean copy** |
+| Repo on GitHub | **YES — `main` pushed, latest `4ebcbda`** (first time in 15 sessions) |
+| Shop Stage 1 | **Built and VERIFIED locally (Session 7).** Next.js 16.3.8 serves the page, backend CORS returns the right origin. Not deployed yet |
+| Code written | Yes: backend (Node/Express) + frontend (Next.js) + **model service (FastAPI, containerised)** + `API_CONTRACT.md`, `README.md` |
 | Agent role | Agent writes the code, owner reviews and runs it (D25) |
-| Accounts created (Supabase, Mailgun, Google Cloud, Vercel, Netlify) | Supabase and Mailgun **live and working**. Google Cloud **not set up** (blocks sign-in) |
+| Accounts created (Supabase, Mailgun, Google Cloud, Vercel, Netlify) | Supabase and Mailgun **live and working**. Google Cloud **not set up** (blocks Google sign-in). Vercel/Netlify/Render **not connected to the repo yet** |
 
 ### Next action for the next agent
 
-1. **OWNER ACTION, BLOCKING Google sign-in** (Session 13). Two Supabase dashboard steps, no code involved:
-   - **Authentication -> Providers -> Google: turn it ON**, paste the Google Client ID and Client Secret from Google Cloud Console.
-   - **Authentication -> URL Configuration -> Redirect URLs: add** `http://localhost:3000/auth/callback`, plus the Vercel production and preview URLs (section 11).
-   Then add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to `frontend/.env.local`. Full steps are in the Session 13 entry.
-2. **OWNER ACTION: promote the first admin.** Sign in once, then in Supabase set `profiles.role = 'admin'` for that user. It cannot be self-assigned by design. `/admin` currently stays on "Checking your access" in the browser, so investigate the session loading before claiming admin access works.
-3. **Finish and verify Stage 8 (admin orders and status).** New backend and frontend files are currently uncommitted. Run the build and exercise list, detail, status update, email, and cancellation/restock paths before marking it done.
-4. **Stage 10's remaining gaps:** `recommendation_sessions` logging and the "Was this helpful?" feedback buttons (feature 11). The table exists and is unblocked.
-5. **Rotate the Supabase DB password and the Mailgun private key before any deployment.** Both are in the chat history.
-6. Deploy to Vercel + Netlify, model service to Render/Railway (D35, warm container, never serverless). Confirm the D9 hosting split (open question 4), complete Stage 11's real usability test, and admin model page.
+1. **OWNER: deploy, in this order** (README "Deploying" has the exact clicks):
+   **(a) Model service first** — Render, Docker, `model/service/Dockerfile`. Use a **paid/trial instance, NOT the free tier**: it sleeps 30–60s, longer than Netlify's 10s function limit. **(b) Backend** — Netlify, base directory `backend`, set `MODEL_SERVICE_URL` + `ALLOWED_ORIGINS` + the Supabase/Mailgun keys. **(c) Frontend** — Vercel, root directory `frontend`, set `NEXT_PUBLIC_API_URL=https://<netlify-site>/api` and the two `NEXT_PUBLIC_SUPABASE_*` values.
+   Code is on GitHub (`main` = `4ebcbda`), so all three can be connected now.
+2. **OWNER ACTION, BLOCKING Google sign-in** (Session 13). Two Supabase dashboard steps, no code: enable the Google provider with the Client ID/Secret, and add `https://<vercel-domain>/auth/callback` to the Redirect URLs. Then set `profiles.role = 'admin'` for the first admin.
+3. **Verify the deployed recommendation chain** with the three curl commands at the end of README "Deploying". A "model not available" response means `MODEL_SERVICE_URL` is wrong or the model service is asleep.
+4. **Stage 10's remaining gaps:** `recommendation_sessions` logging and the "Was this helpful?" feedback buttons (feature 11).
+5. **Rotate the Supabase DB password and the Mailgun private key.** Both are in the chat history.
+6. Complete Stage 8 end-to-end checks, then Stage 11 (real usability test with 3 people, admin model page).
 
 **Update (Session 3):** a full phase plan (A to G) is at the end of the Session 3 entry.
 
@@ -1293,3 +1294,91 @@ create/update/delete cycle against Supabase ending back at 63 products.
 **Problems or errors:** The browser session contains earlier errors from an intermediate malformed edit in `frontend/src/lib/api.js`; current editor diagnostics are clear, but the fresh production build check was skipped, so the current full build is unverified. Stage 8 remains uncommitted, and no public deployment has been made.
 **State at the end:** Local shopper home/catalog render. Stage 8 admin-order work is in progress. `/admin` does not get past session loading, and admin access is not confirmed. No deployment.
 **Next steps:** 1) Diagnose why the admin auth loading state does not settle. 2) Run a fresh frontend build and complete Stage 8 route/status/email/restock checks. 3) Finish Stage 10 logging/feedback and Stage 11. 4) Complete owner auth setup and first-admin promotion, rotate leaked credentials, then deploy.
+
+### Session 16: 2026-10-02
+
+**Agent/model:** Cline
+**Goal of the session:** Owner set the priority for the final push: **deploy to
+Netlify and Vercel, add Google auth, and fix the model prediction not working.**
+Submission is near, so speed mattered more than new features.
+**What was done:**
+
+- **Diagnosed "model prediction not working" instead of assuming it.** The model
+  service was **healthy the whole time**: `/health` returned `model_loaded: true`
+  and a direct `/recommend` returned ranked picks in **1.3s**. Two things had been
+  mistaken for a broken model:
+  1. My own test payloads used hand-typed questionnaire labels that do not exist
+     in the config. The mapper correctly rejected them with the list of valid
+     labels. This is the **fourth** time a hand-typed payload cost a cycle.
+  2. The backend on port 4000 was a **stale process from 07:54**, started before
+     the current code. It returned `502 "model service unreachable"` while
+     `/model/version` worked, because it ran the pre-`available_ids` code.
+     Restarted it and the full chain answered in **1.6s**.
+
+- **Found the three blockers that would have made the deploy fail, all of them
+  production-only, which is exactly why local testing never caught them.**
+  1. **The model service could not start on a fresh clone at all.** Verified by
+     actually cloning the repo: importing the recommender raised
+     `FileNotFoundError` for `ml_model.joblib`, because that 41 MB artifact is
+     git-ignored and `ml_recommender.py` loads it at import time. Every shopper
+     would have seen "our recommendation model is not available". Fixed with
+     `model/service/Dockerfile`, which **trains the model during the image
+     build** from the committed `training_data.csv`. Measured at 27s, no network
+     needed, and the build fails loudly instead of shipping a dead image.
+  2. **The model loaded lazily, so `/health` lied.** Render and Railway decide
+     health by polling `/health`, so a container that could not serve predictions
+     would have been marked healthy. Added a startup hook so the catalog and
+     forest load before the service reports ready.
+  3. **Two data files would not exist in a Netlify deploy.** `phones.csv` and
+     `questionnaire_v1.json` are read at runtime via paths built from `__dirname`,
+     and Netlify uses base directory `backend` with esbuild bundling, so those
+     paths resolve outside the deployed zip. `included_files` cannot reach above
+     the base directory, so both files are now copied into `backend/model_data/`
+     by `npm run sync:model-data`. Because a second copy of the questionnaire
+     could drift from the one the model scores — making the shop ask different
+     questions than the model answers — `npm run check:model-data` **exits 1** on
+     drift. Verified both directions: 1 when tampered, 0 when clean.
+
+- **Verified the deploy fix the only way that proves it: built from a clean copy.**
+  Copied `model/` to a scratch dir, deleted the artifact, ran the exact Docker
+  build steps, then started the service. It trained, booted and returned ranked
+  picks. Docker is installed but **no daemon is running**, so `docker build` could
+  not be run directly; the simulation covers the same steps.
+- **Pushed to GitHub for the first time in 15 sessions** (`main` = `4ebcbda`).
+  Both Vercel and Netlify need the code on GitHub to connect it, so this was
+  blocking all three deploys, not just tidying.
+- **Wrote exact deploy steps into README**: all three services, the env var names
+  for each, and the verification curl commands. Recorded the Render **free-tier
+  warning**: it sleeps 30-60s, longer than Netlify's 10s function limit, so the
+  first shopper after a quiet period would fail. D35 requires a warm instance.
+
+**Decisions made:** none new. D35 (warm container, never serverless) is unchanged;
+this session is what makes it satisfiable, since before this there was no way to
+deploy the model at all.
+**Problems or errors:**
+- A `global _LOAD_ERROR` statement placed inside an `except` block in the new
+  startup hook. Moved to the top of the function. Caught by `ast.parse`.
+- **An `included_files` entry pointing at `../model/...` would have been silently
+  ignored** — it cannot escape the base directory. Replaced the approach entirely.
+- Two of my own calls failed before any real diagnosis: a `node -e` test reporting
+  "Cannot read properties of null" because it never loaded `.env` (the code was
+  correct), and a `$?` that captured `tail` rather than `npm`, briefly making the
+  drift check look like it always exits 0. Re-measured: 1 on drift.
+- Stale backend process on port 4000 again (see above). Third time in this project
+  that an old process answered a test.
+**State at the end:** Model track M1-M4 and M7 **done and now deployable**. Code
+committed and **pushed to GitHub** (`4ebcbda`), including the previously
+uncommitted Stage 8 admin-orders work. 10/10 personas pass, frontend build passes
+with all 18 routes, secret scan clean, full local chain answers in 1.6s. **Nothing
+deployed yet** — the three deploys need the owner's accounts.
+**Next steps:**
+1. **OWNER: deploy in order** — model service (Render, Docker, **paid/trial
+   instance, not free tier**), then backend (Netlify, base dir `backend`), then
+   frontend (Vercel, root dir `frontend`). README "Deploying" has every click and
+   env var.
+2. **OWNER: Google sign-in** — enable the provider in Supabase and add the Vercel
+   redirect URL. No code needed; the code is complete.
+3. Verify the deployed chain with the curl commands in README.
+4. Stage 10's remaining gaps (session logging, feedback buttons), Stage 8
+   end-to-end checks, Stage 11.
+5. Rotate the Supabase DB password and the Mailgun private key.
