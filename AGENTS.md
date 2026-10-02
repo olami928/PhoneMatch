@@ -48,9 +48,9 @@ The shop also includes:
 
 ## 3. Status board
 
-**Last updated:** 2026-10-01 (Session 13)
+**Last updated:** 2026-10-01 (Session 15)
 
-**Current phase:** Model track **M1–M4 and M7 (service) DONE**. Shop track: **Stages 1, 2, 3, 5, 6 (code) and 10 DONE** — Supabase is live and seeded, orders save with real stock decrement, both emails send end to end, `/products` now reads the database, and Google sign-in plus the admin role gate are built. All committed. **Nothing deployed to Vercel/Netlify.** **Google sign-in cannot work until the owner completes two Supabase dashboard steps (Session 13).** Next: **Stage 7 (admin products) and Stage 8 (admin orders)**, which are now unblocked.
+**Current phase:** Model track **M1–M4 and M7 (service) DONE**. Shop track: **Stages 2–5, 7, and 9 done; Stage 1 is verified locally but not deployed; Stage 6 code is built but owner auth setup remains; Stage 8 is in progress in the uncommitted working tree; Stage 10 core flow works but logging and feedback remain; Stage 11 not started.** The local home and catalog render, with 63 products and correct out-of-stock display. `/admin` remains at "Checking your access". **Nothing deployed to Vercel/Netlify.** Current rough estimate: about **75% of local functionality** and **30% of launch readiness**; these are milestone estimates, not measured test coverage.
 
 | Item | Status |
 |---|---|
@@ -70,11 +70,11 @@ The shop also includes:
    - **Authentication -> Providers -> Google: turn it ON**, paste the Google Client ID and Client Secret from Google Cloud Console.
    - **Authentication -> URL Configuration -> Redirect URLs: add** `http://localhost:3000/auth/callback`, plus the Vercel production and preview URLs (section 11).
    Then add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to `frontend/.env.local`. Full steps are in the Session 13 entry.
-2. **OWNER ACTION: promote the first admin.** Sign in once, then in Supabase set `profiles.role = 'admin'` for that user. It cannot be self-assigned by design.
-3. **Stage 7 (admin products and stock)** and **Stage 8 (admin orders and status)**. Both are unblocked now that `requireAdmin` exists. `GET /admin/ping` is the reference route.
+2. **OWNER ACTION: promote the first admin.** Sign in once, then in Supabase set `profiles.role = 'admin'` for that user. It cannot be self-assigned by design. `/admin` currently stays on "Checking your access" in the browser, so investigate the session loading before claiming admin access works.
+3. **Finish and verify Stage 8 (admin orders and status).** New backend and frontend files are currently uncommitted. Run the build and exercise list, detail, status update, email, and cancellation/restock paths before marking it done.
 4. **Stage 10's remaining gaps:** `recommendation_sessions` logging and the "Was this helpful?" feedback buttons (feature 11). The table exists and is unblocked.
 5. **Rotate the Supabase DB password and the Mailgun private key before any deployment.** Both are in the chat history.
-6. Deploy to Vercel + Netlify, model service to Render/Railway (D35, warm container, never serverless). Confirm the D9 hosting split (open question 4).
+6. Deploy to Vercel + Netlify, model service to Render/Railway (D35, warm container, never serverless). Confirm the D9 hosting split (open question 4), complete Stage 11's real usability test, and admin model page.
 
 **Update (Session 3):** a full phase plan (A to G) is at the end of the Session 3 entry.
 
@@ -669,7 +669,7 @@ Do the stages in order. Do not start a stage until the one before it is marked D
 | 5 | Checkout that saves orders, with delivery estimate | A guest order is saved with its items, cart clears | **DONE (Session 12), verified live.** Real orders in Supabase, stock decremented, both emails sent |
 | 6 | Google login and role system | Sign in works, `/admin` blocks non-admins | **CODE DONE (Session 13), BLOCKED on the owner.** `backend/src/auth.js` verifies tokens and gates admin routes; `/signin` and `/auth/callback` pages exist. **Cannot work until Google is enabled in Supabase and redirect URLs are added** |
 | 7 | Admin: products, stock, and feature fields | Admin can add, edit, and set stock for a phone | **CODE DONE (Session 14), needs an admin account to use.** `backend/src/admin.js` + `/admin/products` with create, edit, stock and full spec fields. Feature 26 warns about missing model features without blocking |
-| 8 | Admin: orders and status updates | Admin can change an order's status | Not started. **Next** |
+| 8 | Admin: orders and status updates | Admin can change an order's status | **IN PROGRESS (uncommitted).** Admin order list/detail UI and API additions are present. Build and end-to-end checks have not been completed; `/admin` is still stuck checking access locally. |
 | 9 | Mailgun emails (customer and admin) | Customer gets an order email in under a minute | **DONE (Session 12), verified live.** Both emails fire from `POST /orders`; real Mailgun message IDs returned |
 | 10 | Questionnaire and results pages connected to the model through `POST /recommend`, with session logging and feedback | A shopper answers 5 questions, sees ranked phones with reasons in under 3 seconds, and can add one to the cart | **MOSTLY DONE (Session 10).** Real ranked results live locally. Session logging + feedback buttons still missing |
 | 11 | Admin model page, deployment checks, and real usability test | 2 of 3 real testers finish the flow from questionnaire to order unaided | Not started |
@@ -1284,3 +1284,12 @@ create/update/delete cycle against Supabase ending back at 63 products.
 3. **OWNER: Google provider** and **a real SMTP provider** (Resend recommended;
    Mailgun's current domain is a sandbox and cannot do SMTP).
 4. Rotate the Supabase DB password and the Mailgun private key before deploying.
+
+### Session 15: 2026-10-01
+**Agent/model:** GitHub Copilot
+**Goal of the session:** Check the running website and estimate remaining work.
+**What was done:** Opened the local home, catalog, and admin routes. Home and catalog rendered; catalog showed 63 phones and correctly marked Redmi 13C out of stock. The frontend and backend returned HTTP 200 on local checks. Editor diagnostics reported no errors in the current admin-orders API/backend files. The admin page stayed on "Checking your access". Reviewed current uncommitted Stage 8 changes and recorded them as in progress. Estimated local functionality at about 75% complete and launch readiness at about 30%; these are rough milestone estimates, not test-coverage measurements.
+**Decisions made:** None.
+**Problems or errors:** The browser session contains earlier errors from an intermediate malformed edit in `frontend/src/lib/api.js`; current editor diagnostics are clear, but the fresh production build check was skipped, so the current full build is unverified. Stage 8 remains uncommitted, and no public deployment has been made.
+**State at the end:** Local shopper home/catalog render. Stage 8 admin-order work is in progress. `/admin` does not get past session loading, and admin access is not confirmed. No deployment.
+**Next steps:** 1) Diagnose why the admin auth loading state does not settle. 2) Run a fresh frontend build and complete Stage 8 route/status/email/restock checks. 3) Finish Stage 10 logging/feedback and Stage 11. 4) Complete owner auth setup and first-admin promotion, rotate leaked credentials, then deploy.

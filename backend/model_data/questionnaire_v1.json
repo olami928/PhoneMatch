@@ -1,0 +1,134 @@
+{
+  "version": "questionnaire-v1",
+  "frozen_at": "2026-10-01",
+  "frozen_for": "M2 — the answer-to-feature-and-weight map for the shop",
+  "owner": "Dimeji",
+
+  "notes": [
+    "This file is the single source of truth for the questionnaire and the mapping",
+    "onto the model inputs. The team tunes it here, not in code (see AGENTS.md model rules).",
+    "The model (ml_recommender.py) takes EXACTLY these customer keys and nothing else:",
+    "  budget_ngn, primary_use, camera_priority, battery_priority,",
+    "  performance_priority, storage_priority, brand_preference",
+    "Any key added here that the forest was not trained on is SILENTLY IGNORED by",
+    "score_catalog_ml (it reindexes to MODEL_COLUMNS with fill_value=0). So the map",
+    "below never invents a new input; it folds answers onto the 4 trained priorities."
+  ],
+
+  "questions": [
+    {
+      "id": "budget",
+      "number": 1,
+      "required": true,
+      "question": "What is your budget?",
+      "help": "Pick the closest range. We will never show you a phone above it.",
+      "type": "single_choice",
+      "options": [
+        { "label": "Under NGN 150,000", "min": 0,       "max": 150000 },
+        { "label": "NGN 150,000 - 300,000", "min": 150000,  "max": 300000 },
+        { "label": "NGN 300,000 - 500,000", "min": 300000,  "max": 500000 },
+        { "label": "NGN 500,000 - 1,000,000", "min": 500000, "max": 1000000 },
+        { "label": "NGN 1,000,000 - 2,000,000", "min": 1000000, "max": 2000000 },
+        { "label": "Above NGN 2,000,000", "min": 2000000, "max": 4000000 }
+      ]
+    },
+    {
+      "id": "main_use",
+      "number": 2,
+      "required": true,
+      "question": "What will you use it for most?",
+      "help": "This decides what we look at first.",
+      "type": "single_choice",
+      "options": [
+        { "label": "Photos and video",           "value": "camera" },
+        { "label": "Gaming",                     "value": "gaming" },
+        { "label": "Social media and streaming", "value": "social_media" },
+        { "label": "Calls and everyday use",     "value": "general" },
+        { "label": "Work and study",             "value": "work" }
+      ]
+    },
+    {
+      "id": "top_priority",
+      "number": 3,
+      "required": true,
+      "question": "What matters most to you?",
+      "help": "Just the one. We will weight it highest.",
+      "type": "single_choice",
+      "options": [
+        { "label": "Camera",      "value": "camera" },
+        { "label": "Battery life", "value": "battery" },
+        { "label": "Performance", "value": "performance" },
+        { "label": "Screen", "value": "performance", "alias_of": "performance",
+          "why": "The forest has no screen input. Refresh rate is part of performance_score, so Screen folds into performance rather than being dropped. FLAG FOR M3: if screen really matters to buyers it needs its own feature." },
+        { "label": "Lowest price", "value": "__price__", "alias_of": "price",
+          "why": "The forest has NO budget_priority input — the budget weight is fixed at 0.30 and no slider can move it. So 'lowest price' is honoured by the HARD price filter instead. Honest, and it actually works." }
+      ]
+    },
+    {
+      "id": "storage",
+      "number": 4,
+      "required": true,
+      "question": "How much storage do you need?",
+      "help": "This is a hard requirement. We will not show a phone with less.",
+      "type": "single_choice",
+      "options": [
+        { "label": "Light  (64GB is enough)", "value": "light",  "min_gb": 64 },
+        { "label": "Medium (128GB)",         "value": "medium", "min_gb": 128 },
+        { "label": "Heavy  (256GB or more)", "value": "heavy",  "min_gb": 256 }
+      ]
+    },
+    {
+      "id": "brand_preference",
+      "number": 5,
+      "required": false,
+      "skippable": true,
+      "question": "Any brand you prefer?",
+      "help": "Optional. Skipping gives you the widest choice.",
+      "type": "single_choice",
+      "options": [
+        { "label": "No preference", "value": "Any" },
+        { "label": "Apple iPhone",  "value": "Apple iPhone" },
+        { "label": "Samsung",       "value": "Samsung" },
+        { "label": "TECNO",         "value": "TECNO" },
+        { "label": "itel",          "value": "itel" },
+        { "label": "Xiaomi",        "value": "Xiaomi" },
+        { "label": "Infinix",       "value": "Infinix" },
+        { "label": "OPPO",          "value": "OPPO" },
+        { "label": "Google Pixel",  "value": "Google Pixel" }
+      ]
+    }
+  ],
+
+  "hard_filters": {
+    "why_first": "The forest regresses a score and CANNOT enforce a rule. Stock, active, budget_min and storage_min must be applied to the candidate list BEFORE the forest scores anything (AGENTS.md D34).",
+    "price_max_ngn": "answers.budget.max",
+    "price_max_tolerance": 0.0,
+    "price_max_why": "Hard cap with no overage tolerance. scoring.py allows 15% overage, but the shop must not show a shopper a phone above the range they picked.",
+    "price_min_ngn": "answers.budget.min",
+    "price_min_why": "Used for reporting and for the 'lowest price' cap only, NOT as a filter. A shopper who picks NGN 300k-500k should still be shown a great NGN 280k phone.",
+    "lowest_price_extra_cap": 0.75,
+    "lowest_price_extra_cap_why": "When top_priority = lowest price, cap the candidate set at 75% of budget_max, then re-sort the picks cheapest-first via questionnaire_mapper.reorder_for_lowest_price. MEASURED: the cap ALONE was not enough — the forest returned a NGN 556,000 phone as pick #1 while a NGN 98,100 Redmi 13C was available. The cap filters; the re-sort orders.",
+    "storage_min_gb": "answers.storage.min_gb",
+    "stock_gt": 0,
+    "active_true": true,
+
+    "brand_min_candidates": 3,
+    "brand_min_candidates_why": "A shopper who names a brand gets ONLY that brand, but only if enough phones survive the price and storage rules. If fewer than this many survive, we fall back to every brand rather than show an empty or near-empty results page. MEASURED: 86 of the 144 (brand x budget x storage) combinations have ZERO candidates, so a strict hard filter would leave shoppers with nothing. This is a preference the shopper stated, not a rule we invented, so degrading it is better than showing zero results."
+  },
+
+  "priority_map": {
+    "how": "The questionnaire asks for ONE top priority. The model wants FOUR low/medium/high sliders. Rule: the chosen one becomes 'high', the rest stay 'medium' (not 'low', so we do not punish the other categories).",
+    "camera": "high if top_priority==camera else medium",
+    "battery": "high if top_priority==battery else medium",
+    "performance": "high if top_priority==performance else medium",
+    "storage": "from the storage question only: light=low, medium=medium, heavy=high",
+    "storage_why": "Storage has its own question, so it gets a real measured level instead of a guess, and top_priority never overrides it.",
+    "lowest_price_fallback": "When top_priority==lowest_price all four become 'low', so no single spec category dominates and the price filter does the real work."
+  },
+
+  "reasons": {
+    "ratings_from": "scoring.py component scores (camera_score, battery_score, performance_score, storage_score)",
+    "rating_thresholds": { "excellent": 70, "good": 45, "fair": 0 },
+    "why": "Reason lines are still built by scoring.py, NOT by the forest. Ranking and reasons stay decoupled (see the ml_recommender.py header)."
+  }
+}

@@ -200,3 +200,43 @@ export async function postRecommend(answers) {
     body: JSON.stringify(answers),
   });
 }
+
+// --- Stage 8: admin orders ---------------------------------------------------
+//
+// Same rule as the products calls above: the browser never touches Supabase
+// directly. An order list holds real names, emails, phone numbers and home
+// addresses, so every one of these goes through the backend, which checks the
+// admin role before reading a single row.
+
+// The order statuses. Served by the backend rather than hardcoded here, so a
+// status added to the database cannot drift away from what the admin can choose
+// (backend/src/adminOrders.js holds the single list).
+export async function fetchOrderStatuses() {
+  return apiFetch("/admin/orders/statuses");
+}
+
+// The order list plus a count per status for the filter tabs. `filters` may
+// carry status, search and limit.
+export async function fetchAdminOrders(authToken, filters = {}) {
+  const { status, search, limit } = filters;
+  return apiFetch(`/admin/orders${productsQuery({
+    status,
+    search,
+    limit,
+  })}`, { authToken });
+}
+
+// One order with its items and status history.
+export async function fetchAdminOrder(authToken, id) {
+  return apiFetch(`/admin/orders/${encodeURIComponent(id)}`, { authToken });
+}
+
+// Changes an order's status. The backend emails the customer and handles the
+// restock, so this sends nothing but the status itself.
+export async function setOrderStatus(authToken, id, status) {
+  return apiFetch(`/admin/orders/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    authToken,
+    body: JSON.stringify({ status }),
+  });
+}

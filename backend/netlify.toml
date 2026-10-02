@@ -2,9 +2,39 @@
 #
 # The frontend is hosted on Vercel and calls this backend at /api/*.
 # This redirect sends every /api/... request to the Express app.
+#
+# SETUP IN THE NETLIFY UI (important, and not inferable from this file):
+#   Base directory:  backend
+#   Build command:   (leave blank)
+#   Publish directory: (leave blank)
+# The base directory must be `backend`, because package.json and netlify.toml
+# both live there.
 
 [build]
   functions = "netlify/functions"
+
+[functions]
+  # esbuild bundling, and the src/** files the runtime reads from disk.
+  node_bundler = "esbuild"
+  included_files = ["src/**", "model_data/**"]
+
+# esbuild bundles netlify/functions/api.js, so a path built from __dirname
+# upwards into ../.. would point outside the deployed zip. The two data files
+# the API reads at runtime are therefore copied into backend/model_data/ by
+# `npm run sync:model-data`, and src/** is included so the helpers that read
+# them travel with the bundle. Run the sync before every deploy; `npm run
+# check:model-data` fails if the copies have drifted from model/config and
+# model/data.
+#
+# The 41 MB model artifact is deliberately NOT here: it belongs to the Python
+# service, which must be a warm container (D35), not a serverless function.
+#
+# /recommend calls the Python model service. On the free Netlify plan a function
+# has a hard 10s wall and the model can take ~5.5s to load cold after a restart,
+# so MODEL_SERVICE_URL should point at an already-warm service.
+#
+# SITE_URL and the Supabase/Mailgun keys are NOT here. They are secrets and live
+# in the Netlify dashboard's environment variables.
 
 [[redirects]]
   from = "/api/*"

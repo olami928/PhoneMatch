@@ -45,6 +45,108 @@ The frontend only calls the backend. It reads the backend address from
 `frontend/.env.local` (`NEXT_PUBLIC_API_URL`). Local default is
 `http://localhost:4000`. The deployed backend will be `https://<netlify-site>/api`.
 
+## Deploying
+
+Three services on three providers. **Deploy the model service first** — the
+backend calls it, and `/recommend` returns "our recommendation model is not
+available" until it is live.
+
+| # | Service | Provider | Folder |
+|---|---|---|---|
+| 1 | Model API (FastAPI) | Render or Railway | repo root, uses `model/service/Dockerfile` |
+| 2 | Backend API (Express) | Netlify | base directory `backend` |
+| 3 | Frontend (Next.js) | Vercel | root directory `frontend` |
+
+### Before you push
+
+```bash
+cd backend && npm run check:model-data   # fails if the bundled data copies drifted
+```
+
+### 1. Model service (do this first)
+
+Render: New → Web Service → connect the repo → **Docker** → Dockerfile path
+`model/service/Dockerfile` → Environment `Python`.
+
+The Dockerfile **trains the model during the build** (~30s). This is deliberate:
+`ml_model.joblib` is 41 MB and git-ignored, so a service built from a plain clone
+has no model at all and dies with `FileNotFoundError` on startup. The build step
+reads the committed `training_data.csv`, needs no network, and fails loudly rather
+than shipping a dead image.
+
+Use a **paid or trial instance, not the free tier**. The free tier sleeps after
+inactivity and takes ~30–60s to wake, which is longer than the Netlify function's
+10s limit, so the first shopper after a quiet period would see a failure. This is
+the D35 constraint: it must be a warm, long-lived process.
+
+Copy the deploy URL, e.g. `https://phonematch-model.onrender.com`.
+
+### 2. Backend (Netlify)
+
+- Base directory: `backend` · Build command: *(blank)* · Publish directory: *(blank)*
+
+Environment variables (secrets — set these in the Netlify UI, never commit them):
+
+| Variable | Value |
+|---|---|
+| `MODEL_SERVICE_URL` | the model URL from step 1, **no trailing slash** |
+| `ALLOWED_ORIGINS` | your Vercel URL, once it exists |
+| `SUPABASE_URL` | from `backend/.env` |
+| `SUPABASE_SECRET_KEY` | from `backend/.env` |
+| `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `MAILGUN_API_BASE`, `MAILGUN_FROM`, `MAILGUN_ALLOWED_RECIPIENTS` | from `backend/.env` |
+
+Check: `https://<site>.netlify.app/api/health` should return `{"status":"ok"}`.
+
+### 3. Frontend (Vercel)
+
+Root directory `frontend`, framework auto-detected as Next.js.
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | `https://<site>.netlify.app/api` |
+| `NEXT_PUBLIC_SUPABASE_URL` | from `frontend/.env.local` |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | from `frontend/.env.local` |
+
+The `NEXT_PUBLIC_` values are public by design (D40). The publishable key is safe
+in the browser because row-level security limits what it can do; only `sb_secret_`
+is a genuine leak.
+
+### 4. Google sign-in (dashboard steps, no code)
+
+The code is complete and needs no changes. Two steps:
+
+1. **Supabase → Authentication → Providers → Google**: turn it **ON**, then paste
+   the Google Client ID and Client Secret from Google Cloud Console.
+2. **Supabase → Authentication → URL Configuration → Redirect URLs**: add
+   `https://<your-vercel-domain>/auth/callback` and `http://localhost:3000/auth/callback`.
+
+Then set `profiles.role = 'admin'` for the first admin. Admin is never
+self-assignable, by design (D38).
+
+Note: email/password **sign-up** additionally needs a real SMTP provider. The
+current Mailgun domain is a **sandbox**, which cannot authenticate over SMTP, so
+Supabase's own confirmation emails will not send until that is replaced. Google
+sign-in is unaffected, because it sends no email.
+
+### 5. Verify after deploying
+
+```bash
+curl https://<site>.netlify.app/api/health    # {"status":"ok"}
+curl https://<model-url>/health               # "model_loaded": true
+
+curl -X POST https://<site>.netlify.app/api/recommend \
+  -H 'Content-Type: application/json' \
+  -d '{"budget":"NGN 300,000 - 500,000","main_use":"Photos and video",
+       "top_priority":"Camera","storage":"Medium (128GB)",
+       "brand_preference":"No preference"}'
+```
+
+That last call must return ranked phones. If it returns the "not available"
+message, `MODEL_SERVICE_URL` is wrong or the model service is asleep.
+
+> Rotate the Supabase database password and the Mailgun private key before a real
+> launch — both are in the project chat history.
+
 ## Stage status
 
 See the Status board and the build stages in `AGENTS.md`. Stage 1 (frontend and

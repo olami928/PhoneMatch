@@ -231,19 +231,10 @@ broken because the model is offline, and the shop pages do not depend on this.
 
 ---
 
-## Planned routes (not built yet)
-
-| Method | Route | Who | Stage |
-|---|---|---|---|
 | GET | `/orders/mine` | Signed-in users | 6 |
 | POST | `/recommend/:sessionId/feedback` | Everyone | 3 (needs sessions) |
-| POST | `/admin/products` | Admin only | 7 |
-| PUT | `/admin/products/:id` | Admin only | 7 |
-| GET | `/admin/orders` | Admin only | 8 |
-| PATCH | `/admin/orders/:id/status` | Admin only | 8 |
 | GET | `/admin/model/stats` | Admin only | 11 |
 
-**Note:** `/products` still reads the CSV, not the `products` table. The table is
-seeded and stock IS decremented there on every order, so the product list will
-show stale stock until this is switched over. That switch is the real Stage 3
-goal and is still outstanding.
+**Note:** `/products` and `/products/:id` read the `products` table (Session 13),
+not the CSV. The CSV remains the source of truth for the model specs only
+(D36). Stage 7 and 8 routes are built and listed in the tables above.

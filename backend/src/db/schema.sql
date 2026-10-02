@@ -165,3 +165,52 @@ revoke execute on function public.decrement_stock(text, integer) from public;
 revoke execute on function public.decrement_stock(text, integer) from anon;
 revoke execute on function public.decrement_stock(text, integer) from authenticated;
 grant execute on function public.decrement_stock(text, integer) to service_role;
+
+-- The mirror image of decrement_stock, for when an order is CANCELLED.
+--
+-- WHY THIS EXISTS: cancelling an order that was never fulfilled has to put the
+-- phones back on sale. Without this, cancelling silently destroys stock — the
+-- shop sells a phone that is sitting on a shelf, and the model stops
+-- recommending it because stock hit 0 at checkout and never came back.
+--
+-- It is capped by nothing on purpose: returning stock is always correct, unlike
+-- deducting it, which must be refused when there is not enough. If the same
+-- cancel were somehow applied twice, stock would be inflated, so the backend
+-- guards against that by only calling this on a real status CHANGE (see
+-- adminOrders.setOrderStatus).
+create or replace function public.increment_stock(
+  p_product_id text,
+  p_quantity   integer
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_stock integer;
+begin
+  if p_quantity is null or p_quantity < 1 then
+    return -1;
+  end if;
+
+  update public.products
+     set stock = stock + p_quantity
+   where id = p_product_id
+  returning stock into new_stock;
+
+  if new_stock is null then
+    return -1;
+  end if;
+
+  return new_stock;
+end;
+$$;
+
+-- Same permission rule as decrement_stock: only the backend's service_role key
+-- may call it. Without the revoke, any browser holding the public key could
+-- inflate our stock by calling it directly.
+revoke execute on function public.increment_stock(text, integer) from public;
+revoke execute on function public.increment_stock(text, integer) from anon;
+revoke execute on function public.increment_stock(text, integer) from authenticated;
+grant execute on function public.increment_stock(text, integer) to service_role;

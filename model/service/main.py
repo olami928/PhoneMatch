@@ -102,6 +102,27 @@ class RecommendRequest(BaseModel):
     )
 
 
+@app.on_event("startup")
+def warm_the_model() -> None:
+    """Load the catalog and the 41 MB forest at STARTUP, not on first request.
+
+    WHY THIS MATTERS FOR THE DEPLOYMENT: Render/Railway decide whether this
+    container is healthy by polling /health. If the model loaded lazily, /health
+    would answer "ok" while the first real shopper was still waiting on the
+    5.5s model load — and the orchestrator would consider a dead service healthy.
+    Warming here means /health only reports ok when the model is genuinely ready.
+
+    A failure here is recorded in _LOAD_ERROR instead of crashing the process,
+    so /health can report exactly what went wrong and the container logs stay
+    readable.
+    """
+    global _LOAD_ERROR
+    try:
+        _catalog()
+    except Exception as exc:  # pragma: no cover - startup failure path
+        _LOAD_ERROR = f"{type(exc).__name__}: {exc}"
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     """Liveness. `model_loaded` is the field that matters: a process can be up

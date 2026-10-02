@@ -11,29 +11,69 @@ const path = require("path");
 const products = require("./products");
 const auth = require("./auth");
 const admin = require("./admin");
+const adminOrders = require("./adminOrders");
 const orders = require("./orders");
 const email = require("./email");
 
 // The frozen questionnaire config. Read once and cached, because it does not
 // change while the server runs, and re-reading a file on every request would be
 // wasteful for no benefit.
-const QUESTIONNAIRE_PATH = path.join(
-  __dirname,
-  "..",
-  "..",
-  "model",
-  "config",
-  "questionnaire_v1.json"
-);
+//
+// WHY model_data/ IS CHECKED FIRST: in local development the real file at
+// model/config/questionnaire_v1.json is the source of truth. But Netlify bundles
+// this function with esbuild and deploys with base directory `backend`, so a
+// path built from __dirname upwards into ../.. lands outside the deployed zip and
+// throws — and only in production, never locally. backend/model_data/ holds a
+// byte-identical copy made by `npm run sync:model-data`, and it is what gets
+// deployed. Reading it first means one code path works in both places.
+//
+// The original path is kept as a fallback so a developer who has not run the
+// sync script still gets a working local server, with a warning rather than a
+// crash.
+const QUESTIONNAIRE_CANDIDATES = [
+  path.join(__dirname, "..", "model_data", "questionnaire_v1.json"),
+  path.join(__dirname, "..", "..", "model", "config", "questionnaire_v1.json"),
+];
 
 let questionnaireCache = null;
 
 function readQuestionnaire() {
   if (questionnaireCache) return questionnaireCache;
-  const raw = fs.readFileSync(QUESTIONNAIRE_PATH, "utf8");
+
+  const missing = [];
+  let raw = null;
+  let usedPath = null;
+
+  for (const candidate of QUESTIONNAIRE_CANDIDATES) {
+    try {
+      raw = fs.readFileSync(candidate, "utf8");
+      usedPath = candidate;
+      break;
+    } catch {
+      missing.push(candidate);
+    }
+  }
+
+  if (raw === null) {
+    throw new Error(
+      `Could not read the questionnaire config. Tried:\n  - ${missing.join(
+        "\n  - "
+      )}\nRun: npm run sync:model-data`
+    );
+  }
+
+  // Only warn when the deployed copy was missing, because that is the situation
+  // that means a deploy shipped without running the sync step.
+  if (usedPath !== QUESTIONNAIRE_CANDIDATES[0]) {
+    console.warn(
+      "questionnaire: using the repo copy, not backend/model_data/. Run " +
+        "'npm run sync:model-data' before deploying."
+    );
+  }
+
   const parsed = JSON.parse(raw);
   if (!Array.isArray(parsed.questions) || parsed.questions.length === 0) {
-    throw new Error(`${QUESTIONNAIRE_PATH} has no questions.`);
+    throw new Error(`${usedPath} has no questions.`);
   }
   questionnaireCache = parsed;
   return questionnaireCache;
@@ -147,6 +187,98 @@ app.put("/admin/products/:id", auth.requireAdmin, async (req, res) => {
     }
     console.error("admin updateProduct failed:", err.message);
     res.status(500).json({ error: "Could not save the product." });
+  }
+});
+
+// --- Stage 8: admin orders ---------------------------------------------------
+//
+// Same gate as Stage 7: requireAdmin runs BEFORE the handler, so a non-admin is
+// refused before any order is read. An order list holds real customer names,
+// emails, phone numbers and addresses, so this is the most sensitive read in
+// the whole admin area.
+
+// The status list, served from the backend so the admin dropdown cannot drift
+// out of step with what the API accepts. Public shape, no customer data.
+app.get("/admin/orders/statuses", (req, res) => {
+  res.json({ statuses: adminOrders.STATUSES });
+});
+
+// Lists orders. Supports ?status=, ?search= and ?limit=.
+app.get("/admin/orders", auth.requireAdmin, async (req, res) => {
+  try {
+    const [orders, counts] = await Promise.all([
+      adminOrders.listOrders({
+        status: req.query.status,
+        search: req.query.search,
+        limit: req.query.limit,
+      }),
+      adminOrders.statusCounts(),
+    ]);
+    res.json({ orders, counts });
+  } catch (err) {
+    if (err instanceof adminOrders.OrderValidationError) {
+      return res.status(400).json({ error: err.message });
+    }
+    console.error("admin listOrders failed:", err.message);
+    res.status(500).json({ error: "Could not load the orders." });
+  }
+});
+
+// One order with its items and history.
+app.get("/admin/orders/:id", auth.requireAdmin, async (req, res) => {
+  try {
+    const detail = await adminOrders.getOrderDetail(req.params.id);
+    if (!detail) {
+      return res.status(404).json({ error: "No order was found with that reference." });
+    }
+    res.json(detail);
+  } catch (err) {
+    console.error("admin getOrderDetail failed:", err.message);
+    res.status(500).json({ error: "Could not load the order." });
+  }
+});
+
+// Changes an order's status. Feature 21.
+app.patch("/admin/orders/:id/status", auth.requireAdmin, async (req, res) => {
+  try {
+    // WHO changed it comes from the verified token, never from the body. A
+    // request that tried to set `changed_by` itself is simply ignored.
+    const result = await adminOrders.setOrderStatus(
+      req.params.id,
+      req.body && req.body.status,
+      req.user.id
+    );
+
+    // The email outcome is logged, never swallowed. A status change that
+    // silently failed to notify the customer is the "silent success" trap.
+    if (result.changed) {
+      if (result.email && result.email.sent) {
+        console.log(
+          `order ${req.params.id} -> ${result.order.status}; status email sent <${result.email.id}>`
+        );
+      } else {
+        console.warn(
+          `order ${req.params.id} -> ${result.order.status}; NO status email ` +
+            `(${(result.email && result.email.reason) || "unknown"})`
+        );
+      }
+      for (const r of result.restocked) {
+        console.log(`  restocked ${r.product_id} x${r.quantity} -> stock ${r.stock}`);
+      }
+    }
+
+    res.json({
+      order: result.order,
+      changed: result.changed,
+      restocked: result.restocked,
+      email: result.email,
+    });
+  } catch (err) {
+    if (err instanceof adminOrders.OrderValidationError) {
+      return res.status(400).json({ error: err.message });
+    }
+    console.error("admin setOrderStatus failed:", err.message);
+    res.status(500).json({ error: "Could not change the order status." });
   }
 });
 

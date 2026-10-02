@@ -34,7 +34,14 @@ export default async function PhonesPage({ searchParams }) {
   const maxPrice = parseNumber(params.max_price);
   const brand = params.brand || "";
 
-  const { products, count } = await fetchProducts({ minPrice, maxPrice, brand });
+  let products = [];
+  let count = 0;
+  try {
+    ({ products, count } = await fetchProducts({ minPrice, maxPrice, brand }));
+  } catch {
+    products = [];
+    count = 0;
+  }
 
   return (
     <>
@@ -88,9 +95,15 @@ export default async function PhonesPage({ searchParams }) {
 
         {products.length === 0 ? (
           <div className="mt-6 rounded-[24px] border border-slate-200 bg-white/85 p-6 text-center shadow-sm">
-            <p className="font-semibold text-slate-900">No phones in this price range</p>
+            <p className="font-semibold text-slate-900">
+              {count === 0 && !process.env.NEXT_PUBLIC_API_URL
+                ? "The catalog is temporarily unavailable"
+                : "No phones in this price range"}
+            </p>
             <p className="mt-1 text-sm text-slate-600">
-              Try a wider range, or let our model pick from everything in stock.
+              {count === 0 && !process.env.NEXT_PUBLIC_API_URL
+                ? "The backend is not running locally yet, so the catalog is temporarily unavailable. Start the backend and refresh this page."
+                : "Try a wider range, or let our model pick from everything in stock."}
             </p>
             <Link
               href="/phones"

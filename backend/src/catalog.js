@@ -14,9 +14,28 @@ const fs = require("fs");
 const path = require("path");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
-const CATALOG_PATH =
-  process.env.CATALOG_PATH ||
-  path.join(REPO_ROOT, "model", "data", "phones.csv");
+// Where phones.csv lives.
+//
+// Three candidates, tried in order, because the deploy layout differs from the
+// dev layout and a wrong path fails ONLY in production:
+//
+//   1. CATALOG_PATH env var — an explicit override always wins.
+//   2. backend/model_data/phones.csv — the copy made by `npm run
+//      sync:model-data`. This is what a Netlify deploy actually contains,
+//      because Netlify uses base directory `backend` and esbuild bundles the
+//      function, so ../../model/... resolves outside the deployed zip.
+//   3. model/data/phones.csv — the real source in a git clone. Kept so a fresh
+//      clone works without running the sync script first.
+//
+// An empty CATALOG_PATH in the environment (common on deploy dashboards) must
+// NOT win over the working candidates, or the API would try to read "" and fail.
+const CATALOG_CANDIDATES = [
+  process.env.CATALOG_PATH,
+  path.join(__dirname, "..", "model_data", "phones.csv"),
+  path.join(REPO_ROOT, "model", "data", "phones.csv"),
+].filter(Boolean);
+
+const CATALOG_PATH = CATALOG_CANDIDATES[0];
 
 // Parses RFC4180 CSV: quoted fields, commas inside quotes, "" escapes, and both
 // \n and \r\n line endings. A plain split(",") would corrupt every row whose

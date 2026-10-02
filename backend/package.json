@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "node src/server.js",
     "start": "node src/server.js",
-    "seed": "node src/db/seed_products.js"
+    "seed": "node src/db/seed_products.js",
+    "sync:model-data": "node src/sync_model_data.js",
+    "check:model-data": "node src/sync_model_data.js --check"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

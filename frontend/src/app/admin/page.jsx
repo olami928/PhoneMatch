@@ -71,9 +71,13 @@ export default function AdminHomePage() {
             Add a phone, change its price, and set its stock.
           </p>
         </li>
-        <li className="rounded-xl border border-dashed border-slate-300 p-4 text-slate-500">
-          <span className="font-medium">Orders</span>
-          <p className="mt-1 text-sm">Not built yet. Coming next.</p>
+        <li className="rounded-xl border border-slate-200 p-4">
+          <Link href="/admin/orders" className="font-medium text-slate-900 underline">
+            Orders
+          </Link>
+          <p className="mt-1 text-sm text-slate-600">
+            See every order, and change its status to update the customer.
+          </p>
         </li>
         <li className="rounded-xl border border-dashed border-slate-300 p-4 text-slate-500">
           <span className="font-medium">Model feedback</span>
